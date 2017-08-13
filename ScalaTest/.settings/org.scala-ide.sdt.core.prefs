@@ -1,0 +1,5 @@
+eclipse.preferences.version=1
+scala.compiler.additionalParams=\ -Xsource\:2.12 -Ymacro-expand\:none
+scala.compiler.installation=772906362
+scala.compiler.sourceLevel=2.12
+scala.compiler.useProjectSettings=true
