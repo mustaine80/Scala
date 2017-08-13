@@ -1,5 +1,5 @@
 class Foo(x: Int, y: Int) {
-	require(x != 0)		///	조건을 만족하지 않으면 인스턴트가 생성되지 않는다.
+	require(x != 0)		///	조건을 만족하지 않으면 인스턴트가 생성되지 않는다. but?
 	private val bar = 0
 
 	def apply = println("class's apply run.")
