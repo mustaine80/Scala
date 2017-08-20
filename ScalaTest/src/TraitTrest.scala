@@ -41,7 +41,7 @@ abstract class UnhappyException extends LoggedException {
   override def getMessage() = "arggh!"
 }
 
-object TraitTest extends App {
+object TraitTest2 extends App {
   //var acc = new SavingAccount    // acc can't be instantiated because SavingAccount it abstract class
   var acc2 = new SavingAccount with ConsoleLogger
   var acc3 = new SavingAccount with ConsoleLogger with TimeStampLogger

@@ -29,7 +29,7 @@ object PatternMatchTest
   }
 }
 
-object Main extends App {
+object Main2 extends App {
   object Twice {
     def apply(x: Int) : Int = x * 2
     def unapply(x: Int) : Option[Int] = if(x % 2 == 0) Some(x / 2) else None
