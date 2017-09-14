@@ -10,9 +10,9 @@ object CollectionEx extends App
 
   //	Array
   val fiveInts = new Array[Int](5)
-  println("\n" + fiveInts)
+  println(fiveInts.mkString(", "))
   val fiveToOne = Array(1,2,3,4,5)
-  println(fiveToOne)
+  println(fiveToOne.mkString(", "))
 
   //	ListBuffer 앞뒤로 원소를 추가하는데 상수 시간이 걸린다.
   import scala.collection.mutable.ListBuffer
