@@ -66,6 +66,7 @@ object PatternMatchTest2 extends App {
 }
 
 object PatternMachingTest2Seq extends App {
+  val stringSeq       = Seq("a", "b", "c")
   val nonEmptySeq     = Seq(1, 2, 3, 4, 5)
   val emptySeq        = Seq.empty[Int]
   val nonEmptyList    = List(1, 2, 3, 4, 5)
@@ -76,11 +77,16 @@ object PatternMachingTest2Seq extends App {
   val emptyMap        = Map.empty[String, Int]
   
   def seqToString[T](seq: Seq[T]): String = seq match {
-    case head +: tail => s"($head +: ${seqToString(tail)})"
+    //case head +: tail => s"($head +: ${seqToString(tail)})"
+    case head +: tail => { val x =  head match {
+      case _ : Int => s"(Int_$head"
+      case _ : String => s"(Str_$head"
+      case _ => "" }
+      x + " +: " + s"${seqToString(tail)})" }
     case Nil => "Nil"
   }
   
-  for(seq <- Seq(
+  for(seq <- Seq(stringSeq,
       nonEmptySeq, emptySeq, nonEmptyList, emptyList, nonEmptyVector, emptyVector, nonEmptyMap.toSeq, emptyMap.toSeq)) {
     println(seqToString(seq))
   }
