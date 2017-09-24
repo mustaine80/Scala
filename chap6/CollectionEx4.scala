@@ -1,6 +1,7 @@
 object CollectionEx extends App {
 	val xs = List(1,2,3,4,5)
 
+	//	Iterable Trait
 	//	이터레이터
 	xs.iterator foreach println
 	xs grouped 3 foreach println

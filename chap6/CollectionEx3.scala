@@ -1,3 +1,15 @@
+// abstract class Tree
+case class Branch(left: Tree, right: Tree) extends Tree
+case class Node(elem: Int) extends Tree
+
+//	custom class 에 대해 Traversable 구현
+abstract class Tree extends Traversable[Int] {
+	def foreach[U](f: Int => U) = this match {
+		case Node(elem) => f (elem)
+		case Branch(l, r) => l foreach f; r foreach f 
+	}
+}
+
 object collectionEx extends App {
 	//	Traversable trait
 	//	맵
@@ -123,4 +135,9 @@ object collectionEx extends App {
 	println(s"collection view filter : $lazyView")
 	val lazyViewFromTo = (0 to 1000000000).view(4, 12).filter(_ % 2 == 0).take(10).toList
 	println(s"collection view(from, to) filter : $lazyViewFromTo")
+
+	//	custom class Traversal implementation
+	val tree = Branch(Branch(Node(1), Node(4)), Branch(Node(5), Node(7)))
+	tree foreach println
+	println(tree.toIterable.iterator.hasNext)
 }
