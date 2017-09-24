@@ -28,4 +28,30 @@ object CollectionEx extends App {
 	//	변경
 	println(s"xs patch (6, ys, 20) : ${xs patch (6, ys, 20)}")
 	println(s"xs updated (4, ' ') : ${xs updated (4, ' ')}")
+
+	///	seq(i) = x 는 update 와 동일하지만 mutable.Seq 만 사용 가능하다.
+	import scala.collection.mutable.ListBuffer
+	val ls = ListBuffer(1,2,3,4,5)
+	println(s"ls(4) = 6 ${ls(4) = 6}")
+
+	//	정렬
+	println(s"xs sorted : ${xs sorted}")
+	println(s"xs sortWith ((x,y) => x > y) : ${xs sortWith ((x,y) => x > y)}")
+	println(s"ls sortBy (_ % 2) : ${ls sortBy (_ % 2)}")
+
+	//	반전
+	println(s"xs reverse : ${xs reverse}")
+	println(s"xs reverseIterator next : ${xs.reverseIterator.next}")
+	println(s"ls reverseMap (_ * -1) : ${ls reverseMap (_ * -1)}")
+
+	//	비교
+	println(s"xs startsWith hell : ${xs startsWith "hell"}")
+	println(s"xs endsWith abcd : ${xs endsWith "abcd"}")
+	println(s"xs contains ' ' : ${xs contains ' '}")
+	println(s"xs containsSlice ys : ${xs containsSlice ys}")
+
+	val a = List(2,4,6,8,10)
+	val b = List(12,14,16,18,20)
+
+	//	TODO: corresponds 이후부터 추후 작성
 }
