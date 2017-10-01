@@ -64,4 +64,10 @@ object CollectionEx extends App {
 
 	println(cachedF("abc"))	///	캐시 저장
 	println(cachedF("abc"))	///	캐시 사용
+
+	//	lazy evaluation 변환은 view 메소드에서만 가능
+	//	이를 다시 eager evaluation 으로 변환하려면 force 메소드 사용
+	val v = Vector(1,2,3,4,5)
+	println(v.view map (_ + 1) map (_ * 2))
+	println((v.view map (_ + 1) map (_ * 2)).force)
 }
