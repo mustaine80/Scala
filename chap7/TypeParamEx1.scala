@@ -41,8 +41,8 @@ object Queue {
 object TypeParamEx1 extends App {
 	//	타입 파라미터 변성 예
 	val intQ = Queue(1,2,3)
-	println(intQ.toString)
+	println(intQ)
 
 	val variantQ = intQ.enqueue("abc")
-	println(variantQ.toString)
+	println(variantQ)
 }
