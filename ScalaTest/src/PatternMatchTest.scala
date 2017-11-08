@@ -1,26 +1,26 @@
-abstract class Tree
-case class Sum(l: Tree, r: Tree) extends Tree
-case class Var(n: String) extends Tree
-case class Const(v: Int) extends Tree
+abstract class TTree
+case class Sum(l: TTree, r: TTree) extends TTree
+case class Var(n: String) extends TTree
+case class Const(v: Int) extends TTree
 
 object PatternMatchTest
 {
   type Environment = String => Int
   
-  def eval(t: Tree, env: Environment): Int = t match {
+  def eval(t: TTree, env: Environment): Int = t match {
     case Sum(l, r) => eval(l, env) + eval(r, env)
     case Var(n) => env(n)
     case Const(v) => v
   }
   
-  def derive(t: Tree, v: String): Tree = t match {
+  def derive(t: TTree, v: String): TTree = t match {
     case Sum(l, r) => Sum(derive(l, v), derive(r, v))
     case Var(n) if(v == n) => Const(1)
     case _ => Const(0)
   }
   
   def main(args:Array[String]) {
-    val exp: Tree = Sum(Sum(Var("x"), Var("x")), Sum(Const(7), Var("y")))
+    val exp: TTree = Sum(Sum(Var("x"), Var("x")), Sum(Const(7), Var("y")))
     val env: Environment = { case "x" => 5 case "y" => 7 }
     println("Expression: " + exp)
     println("Evaluation with x=5, y=7: " + eval(exp, env))
@@ -67,6 +67,7 @@ object Main2 extends App {
   t.method(5)
   t.method(40)
   t.method(120)
+  t.method(130)
   
   object Domain {
     def unapplySeq(whole: String): Option[Seq[String]] = {
@@ -81,6 +82,8 @@ object Main2 extends App {
   }
   
   val Domain(first, second, third) = "www.lignex1.com"
+  val Domain(first2, second2, third2, fourth2) = "www.lignex1.co.kr"
+//  val Domain(seq: Option[Seq[String]]) = "www.lignex1.co.kr"
   
-  printf("%s %s %s\n", first, second, third)
+  printf("%s %s %s %s\n", first2, second2, third2, fourth2)
 }

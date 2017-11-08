@@ -43,7 +43,7 @@ object Main extends App {
   def mulOneAtATime(x: Int)(y: Int) = x * y
   
   println( "mulOneAtATime(6)(7): " + mulOneAtATime(6)(7) )
-  
+
   def mulBy2 = mulOneAtATime(2)(_)
   def mulByTwo(x: Int) = mulOneAtATime(2)(x)
   

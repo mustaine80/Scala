@@ -47,10 +47,15 @@ object TraitTest2 extends App {
   var acc3 = new SavingAccount with ConsoleLogger with TimeStampLogger
   var acc4 = new SavingAccount with ConsoleLogger with ShortLogger with TimeStampLogger
   var acc5 = new SavingAccount with ConsoleLogger with TimeStampLogger with ShortLogger
-  
+ 
   //acc.withdraw(1100)
   acc2.withdraw(1100)
   acc3.withdraw(1100)
   acc4.withdraw(1100)
   acc5.withdraw(1100)
+  
+  acc2.info("this is test msg")
+  acc3.info("this is test msg")
+  acc4.info("this is test msg")
+  acc5.info("this is test msg")
 }
