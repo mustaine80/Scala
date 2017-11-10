@@ -108,9 +108,6 @@ object NOMParser extends Parser {
   }
   
   def composeBasicTypeList(m: Map[String, Map[String, String]]) {
-    val LENGTH = "length"
-    val ENDIAN = "endian"
-    val DATATYPE = "type"
     m.map( ( e: (String, Map[String, String]) ) => BasicType(e._1, Integer.parseInt(e._2("length")), e._2("endian"), e._2("type")) ).foreach( basicTypeList += _ ) 
     
     println(basicTypeList)
