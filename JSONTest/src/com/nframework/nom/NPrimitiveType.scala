@@ -114,7 +114,7 @@ class NPrimitiveType extends NDataType {
     
     length += valueList.map(_.length).reduce(_ + _)
     
-    // ±¸Á¶Ã¼ ¸â¹ö ¸ÂÃã Ã³¸®´Â ³ªÁß¿¡...
+    // Â±Â¸ÃÂ¶ÃƒÂ¼ Â¸Ã¢Â¹Ã¶ Â¸Ã‚ÃƒÃ£ ÃƒÂ³Â¸Â®Â´Ã‚ Â³ÂªÃÃŸÂ¿Â¡...
   }
   
   def setAlignmentLength(length: Short) {

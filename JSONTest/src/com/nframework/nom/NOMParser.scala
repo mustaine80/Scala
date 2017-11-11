@@ -57,7 +57,7 @@ object NOMParser extends Parser {
       line = fileutf8.readLine
     }
     
-    jsonstrutf8 = jsonstrutf8.drop(1)  // UTF-8·Î ÀÎÄÚµùµÈ ÆÄÀÏÀº string ¾Õ¿¡ -1ÀÌ ºÙÀ¸¹Ç·Î Ã¹ ±ÛÀÚ¸¦ Àß¶ó¾ß ÇÔ
+    jsonstrutf8 = jsonstrutf8.drop(1)  // UTF-8ë¡œ ì¸ì½”ë”©ëœ íŒŒì¼ì€ string ì•ì— -1ì´ ë¶™ìœ¼ë¯€ë¡œ ì²« ê¸€ìë¥¼ ì˜ë¼ì•¼ í•¨
 
 
     val json = JSON.parseFull(jsonstrutf8)
