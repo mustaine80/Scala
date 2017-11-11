@@ -57,7 +57,7 @@ object NOMParser extends Parser {
       line = fileutf8.readLine
     }
     
-    jsonstrutf8 = jsonstrutf8.drop(1)  // UTF-8로 인코딩된 파일은 string 앞에 -1이 붙으므로 첫 글자를 잘라야 함
+    //jsonstrutf8 = jsonstrutf8.drop(1)  // UTF-8로 인코딩된 파일은 string 앞에 -1이 붙으므로 첫 글자를 잘라야 함
 
 
     val json = JSON.parseFull(jsonstrutf8)
