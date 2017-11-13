@@ -38,24 +38,15 @@ trait NDataType {
 
 object NDataType {
   def reverseBytes(input: Array[Byte]) : Array[Byte] = {
-    var reversed = new Array[Byte](input.length)
-    
-    
-    reversed
+    input.reverse
   }
   
   def reverseBytes(input: Array[Byte], size: Int) : Array[Byte] = {
-    var reversed = new Array[Byte](input.length)
-    
-    
-    reversed
+    input.dropRight(input.length - size).reverse ++ input.drop(size)
   }
   
   def reverseBytes(input: Array[Byte], offset: Int, size: Int) : Array[Byte] = {
-    var reversed = new Array[Byte](input.length)
-    
-    
-    reversed
+    input.dropRight(input.length - offset) ++ input.drop(offset).dropRight(input.length - offset - size).reverse ++ input.drop(offset + size)
   }
   
   def serializeIndicator(data: Array[Byte], length: Int, offset: Int, alignment: Boolean) {

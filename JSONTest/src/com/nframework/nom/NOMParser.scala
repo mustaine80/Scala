@@ -170,4 +170,12 @@ object JSONTest extends App {
 
   NOMParser.parse("test.json")
   
+  val a: Array[Byte] = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+  println( NValueType.reverseBytes(a).mkString(", ") )
+  println( NValueType.reverseBytes(a, 4).mkString(", ") )
+  println( NValueType.reverseBytes(a, 2, 4).mkString(", ") )
+  
+  import scala.math.BigInt
+  println( BigInt(1).toByteArray.mkString(", ") )
+  println( BigInt(0x12345678).toByteArray.length )  
 }

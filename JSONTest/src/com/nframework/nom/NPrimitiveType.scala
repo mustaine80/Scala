@@ -134,7 +134,11 @@ class NPrimitiveType extends NDataType {
   }
   
   def setOMT(b: Boolean) {
+    this.omt = b
     
+    if(b) {
+      
+    }
   }
   
   
