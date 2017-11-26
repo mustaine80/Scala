@@ -1,7 +1,7 @@
 package com.nframework.nom
 
 class NChar(b: Char) extends NValueType {
-  var value: Char = 0
+  var value: Char = b
   
   dataType = EDataType.CHAR
   length = 1

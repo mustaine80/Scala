@@ -1,7 +1,7 @@
 package com.nframework.nom
 
 class NBool(b: Boolean) extends NValueType {
-  var value: Boolean = false
+  var value: Boolean = b
   
   dataType = EDataType.BOOL
   length = 1

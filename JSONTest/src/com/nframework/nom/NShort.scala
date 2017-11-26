@@ -1,11 +1,11 @@
 package com.nframework.nom
 
-class NByte(b: Byte) extends NValueType {
-  var value: Byte = b
+class NShort(s: Short) extends NValueType {
+  var value: Short = s
   
-  dataType = EDataType.BYTE
-  length = 1
-  typeLength = 1
+  dataType = EDataType.SHORT
+  length = 2
+  typeLength = 2
   
   def this() = this(0)
   
@@ -38,13 +38,13 @@ class NByte(b: Byte) extends NValueType {
   }
   
   def setValue(valueType: NValueType) : Boolean = {
-    this.value = valueType.asInstanceOf[NByte].value
+    this.value = valueType.asInstanceOf[NShort].value
     
     true
   }
   
   def getClone() : NValueType = {
-    val clone = new NByte(value)
+    val clone = new NShort(value)
     
     clone.value = value
     clone.bigEndian = bigEndian
@@ -56,23 +56,40 @@ class NByte(b: Byte) extends NValueType {
   }
   
   def copyTo(to: NValueType) {
-    to.asInstanceOf[NByte].value = value
+    to.asInstanceOf[NShort].value = value
   }
   
   def serialize(length: Int) : Array[Byte] = {
-    Array(value.asInstanceOf[Byte])
+    val buffer = new scala.collection.mutable.ArrayBuffer[Byte]
+    
+    if(bigEndian) {
+      buffer += (value / 0x100).asInstanceOf[Byte]
+      buffer += (value % 0x100).asInstanceOf[Byte]
+    } else {
+      buffer += (value % 0x100).asInstanceOf[Byte]
+      buffer += (value / 0x100).asInstanceOf[Byte]
+    }
+    
+    buffer.toArray
   }
   
   def deserialize(data: Array[Byte], offset: Int) : Int = {
-    val length: Int = 1
+    val length: Int = 2
+    var v: Short = 0
     
-    value = Array(offset).asInstanceOf[Byte]
+    if(bigEndian) {
+      v = (data(0).toInt * 0x100 + data(1).toInt).toShort
+    } else {
+      v = (data(1).toInt * 0x100 + data(0).toInt).toShort
+    }
+    
+    value = v
     
     length
   }
 }
 
-object NByte {
-  def apply(b: Byte) = new NByte(b)
-  def apply(b: NByte) = new NByte(b.value)
+object NShort {
+  def apply(s: Short) = new NShort(s)
+  def apply(s: NShort) = new NShort(s.value)
 }
