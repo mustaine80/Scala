@@ -8,7 +8,6 @@ private object Start
 
 object MEC_Proto {
   private object Pop
-  private object Tick
   private object TickKey
 }
 
@@ -23,7 +22,7 @@ case class SendMsg(msg: NOM)
 
 /// msg: mec -> meb
 case class RecvMsg(msg: NOM)
-case class ReflectMsg(msg: NOM)
+case class ReflectMsg(msg: NOM, buffer: Byte)
 case class DiscoverMsg(msg: NOM)
 case class RemoveMsg(msg: NOM)
 
@@ -56,7 +55,7 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
     reflectedNOMList += ((nomMsg, buffer))
   }
 
-  def deleteMSg(nomMsg: NOM): Unit = {
+  def deleteMsg(nomMsg: NOM): Unit = {
     meb ! DeleteMsg(nomMsg)
   }
 
@@ -77,26 +76,56 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
     receivedNOMList += nomMsg
   }
 
-  def msgPop(): Unit = {
+  //  todo: need to merge type parameter method of "msgPop[T]"
+  def popReflectedMsg(xs: ListBuffer[(NOM, Byte)]): ListBuffer[(NOM, Byte)] = {
+    xs match {
+      case ListBuffer() => xs
+      case x +: xsLeft =>
+        user ! ReflectMsg(x._1, x._2)
+        popReflectedMsg(xsLeft)
+    }
+  }
+
+
+  def msgPop[T](xs: ListBuffer[T], proc: T => Unit): ListBuffer[T] = {
+    xs match {
+      case ListBuffer() => xs
+      case x +: xsLeft =>
+        proc(x)
+        msgPop(xsLeft, proc)
+    }
+  }
+
+  def task(): Unit = {
     println("NOM msg processing...")
 
-    receivedNOMList.foreach(user ! RemoveMsg(_))
-    reflectedNOMList.foreach {
-      case x: (NOM, Byte) => user ! ReflectMsg(x._1)
-      case _ =>
-    }
-    discoveredNOMList.foreach(user ! DiscoverMsg(_))
-    removedNOMList.foreach(user ! RemoveMsg(_))
+    receivedNOMList = msgPop(receivedNOMList, user ! RecvMsg(_))
+    discoveredNOMList = msgPop(discoveredNOMList, user ! DiscoverMsg(_))
+    removedNOMList = msgPop(removedNOMList, user ! RemoveMsg(_))
 
-    receivedNOMList = ListBuffer[NOM]()
-    reflectedNOMList = ListBuffer[(NOM, Byte)]()
-    discoveredNOMList = ListBuffer[NOM]()
-    removedNOMList = ListBuffer[NOM]()
+    //  todo: need to replace msgPop()
+    reflectedNOMList = popReflectedMsg(reflectedNOMList)
   }
 
   def receive = {
+    //  mec initialize
     case Start => timers.startPeriodicTimer(TickKey, Pop, 1.second)
-    case Pop => msgPop()
+    case ActorRef => setMEB(_)
+
+    //  user -> mec: data request
+    case name: String => registerMsg(name)
+    case UpdateMsg => updateMsg(_)
+    case DeleteMsg => deleteMsg(_)
+    case SendMsg => sendMsg(_)
+
+    //  meb -> mec: data push
+    case (msg: NOM, buf: Byte) => reflectMsg(msg, buf)
+    case DiscoverMsg => discoverMsg(_)
+    case RecvMsg => recvMsg(_)
+    case RemoveMsg => removeMsg(_)
+
+    //  mec self scheduling
+    case Pop => task()
   }
 }
 
