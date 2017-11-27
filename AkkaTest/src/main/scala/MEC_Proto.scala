@@ -1,8 +1,16 @@
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import scala.concurrent.duration._
+
+import akka.actor.{Actor, ActorRef, ActorSystem, Props, Timers}
 
 import scala.collection.mutable.ListBuffer
 
 private object Start
+
+object MEC_Proto {
+  private object Pop
+  private object Tick
+  private object TickKey
+}
 
 class NOM
 
@@ -20,20 +28,13 @@ case class DiscoverMsg(msg: NOM)
 case class RemoveMsg(msg: NOM)
 
 
-class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor {
+class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor with Timers {
+  import MEC_Proto._
+
   var receivedNOMList = ListBuffer[NOM]()
   var reflectedNOMList = ListBuffer[(NOM, Byte)]()
   var discoveredNOMList = ListBuffer[NOM]()
   var removedNOMList = ListBuffer[NOM]()
-
-  def initActor(): Unit = {
-    //  todo: use akka scheduler
-    for (i <- 1 to 5) {
-      println(i + "th NOM msg processing...")
-      msgPop()
-      Thread.sleep(1000)
-    }
-  }
 
   def setMEB(mec: ActorRef): Unit = {
     meb ! mec   /// attach reference
@@ -76,48 +77,16 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor {
     receivedNOMList += nomMsg
   }
 
-  //  todo: code duplicaton
-  def popReceivedMsg(xs: List[NOM]): List[NOM] = {
-    xs match {
-      case Nil => xs
-      case x :: xsLeft =>
-        user ! RecvMsg(x)
-        popReceivedMsg(xsLeft)
-    }
-  }
-
-  def popReflectedMsg(xs: List[(NOM, Byte)]): List[(NOM, Byte)] = {
-    xs match {
-      case Nil => xs
-      case x :: xsLeft =>
-        user ! ReflectMsg(x._1)
-        popReflectedMsg(xsLeft)
-    }
-  }
-
-  def popDiscoveredMsg(xs: List[NOM]): List[NOM] = {
-    xs match {
-      case Nil => xs
-      case x :: xsLeft =>
-        user ! DiscoverMsg(x)
-        popDiscoveredMsg(xsLeft)
-    }
-  }
-
-  def popRemovedMsg(xs: List[NOM]): List[NOM] = {
-    xs match {
-      case Nil => xs
-      case x :: xsLeft =>
-        user ! RemoveMsg(x)
-        popRemovedMsg(xsLeft)
-    }
-  }
-
   def msgPop(): Unit = {
-    popReceivedMsg(receivedNOMList.toList)
-    popReflectedMsg(reflectedNOMList.toList)
-    popDiscoveredMsg(discoveredNOMList.toList)
-    popRemovedMsg(removedNOMList.toList)
+    println("NOM msg processing...")
+
+    receivedNOMList.foreach(user ! RemoveMsg(_))
+    reflectedNOMList.foreach {
+      case x: (NOM, Byte) => user ! ReflectMsg(x._1)
+      case _ =>
+    }
+    discoveredNOMList.foreach(user ! DiscoverMsg(_))
+    removedNOMList.foreach(user ! RemoveMsg(_))
 
     receivedNOMList = ListBuffer[NOM]()
     reflectedNOMList = ListBuffer[(NOM, Byte)]()
@@ -126,7 +95,8 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor {
   }
 
   def receive = {
-    case Start => initActor()
+    case Start => timers.startPeriodicTimer(TickKey, Pop, 1.second)
+    case Pop => msgPop()
   }
 }
 
@@ -141,6 +111,5 @@ object MEC_Test {
     val mec = system.actorOf(Props(new MEC_Proto("CommunicationManager", mecSurrogate, meb)))
 
     mec ! Start
-    system.terminate()
   }
 }
