@@ -13,6 +13,7 @@ object MEC_Proto {
 
 class NOM
 
+
 /// msg: meb -> mec
 case class RegisterMsg(msgName: String, userName: String)
 case class UpdateMsg(msg: NOM)
@@ -76,23 +77,22 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
     receivedNOMList += nomMsg
   }
 
-  //  todo: need to merge type parameter method of "msgPop[T]"
-  def popReflectedMsg(xs: ListBuffer[(NOM, Byte)]): ListBuffer[(NOM, Byte)] = {
-    xs match {
-      case ListBuffer() => xs
-      case x +: xsLeft =>
-        user ! ReflectMsg(x._1, x._2)
-        popReflectedMsg(xsLeft)
-    }
-  }
-
-
-  def msgPop[T](xs: ListBuffer[T], proc: T => Unit): ListBuffer[T] = {
+  def msgPop(xs: ListBuffer[NOM], proc: NOM => Unit): ListBuffer[NOM] = {
     xs match {
       case ListBuffer() => xs
       case x +: xsLeft =>
         proc(x)
         msgPop(xsLeft, proc)
+    }
+  }
+
+  //  todo: this overloading use to process ReflectMsg
+  def msgPop(xs: ListBuffer[(NOM, Byte)]): ListBuffer[(NOM, Byte)] = {
+    xs match {
+      case ListBuffer() => xs
+      case x +: xsLeft =>
+        user ! ReflectMsg(x._1, x._2)
+        msgPop(xsLeft)
     }
   }
 
@@ -103,8 +103,8 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
     discoveredNOMList = msgPop(discoveredNOMList, user ! DiscoverMsg(_))
     removedNOMList = msgPop(removedNOMList, user ! RemoveMsg(_))
 
-    //  todo: need to replace msgPop()
-    reflectedNOMList = popReflectedMsg(reflectedNOMList)
+    //  todo: need to improve...
+    reflectedNOMList = msgPop(reflectedNOMList)
   }
 
   def receive = {
