@@ -13,28 +13,28 @@ object MEC_Proto {
 
 class NOM
 
+class PubSub
 
 /// msg: meb -> mec
-case class RegisterMsg(msgName: String, userName: String)
-case class UpdateMsg(msg: NOM)
-case class DeleteMsg(msg: NOM)
-case class SendMsg(msg: NOM)
+case class RegisterMsg(msgName: String, userName: String) extends PubSub
+case class UpdateMsg(msg: NOM) extends PubSub
+case class DeleteMsg(msg: NOM) extends PubSub
+case class SendMsg(msg: NOM) extends PubSub
 
 
 /// msg: mec -> meb
-case class RecvMsg(msg: NOM)
-case class ReflectMsg(msg: NOM, buffer: Byte)
-case class DiscoverMsg(msg: NOM)
-case class RemoveMsg(msg: NOM)
-
+case class RecvMsg(msg: NOM) extends PubSub
+case class ReflectMsg(msg: NOM, buffer: Byte) extends PubSub
+case class DiscoverMsg(msg: NOM) extends PubSub
+case class RemoveMsg(msg: NOM) extends PubSub
 
 class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor with Timers {
   import MEC_Proto._
 
-  var receivedNOMList = ListBuffer[NOM]()
-  var reflectedNOMList = ListBuffer[(NOM, Byte)]()
-  var discoveredNOMList = ListBuffer[NOM]()
-  var removedNOMList = ListBuffer[NOM]()
+  var receivedNOMList = ListBuffer[RecvMsg]()
+  var reflectedNOMList = ListBuffer[(ReflectMsg)]()
+  var discoveredNOMList = ListBuffer[DiscoverMsg]()
+  var removedNOMList = ListBuffer[RemoveMsg]()
 
   def setMEB(mec: ActorRef): Unit = {
     meb ! mec   /// attach reference
@@ -45,7 +45,7 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
   }
 
   def discoverMsg(nomMsg: NOM): Unit = {
-    discoveredNOMList += nomMsg
+    discoveredNOMList += DiscoverMsg(nomMsg)
   }
 
   def updateMsg(nomMsg: NOM): Unit = {
@@ -53,7 +53,7 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
   }
 
   def reflectMsg(nomMsg: NOM, buffer: Byte): Unit = {
-    reflectedNOMList += ((nomMsg, buffer))
+    reflectedNOMList += ReflectMsg(nomMsg, buffer)
   }
 
   def deleteMsg(nomMsg: NOM): Unit = {
@@ -61,9 +61,9 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
   }
 
   def removeMsg(nomMsg: NOM): Unit = {
-    val r = (discoveredNOMList find (x => x == nomMsg)).get
+    val r = (discoveredNOMList find (_ == DiscoverMsg(nomMsg))).get
     discoveredNOMList -= r
-    removedNOMList += r
+    removedNOMList += RemoveMsg(r.msg)
   }
 
   def sendMsg(nomMsg: NOM): Unit = {
@@ -74,10 +74,10 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
     //  val msg = nomMsg.clone()  /// ???
     //  msg.setOwner(userName)
 
-    receivedNOMList += nomMsg
+    receivedNOMList += RecvMsg(nomMsg)
   }
 
-  def msgPop(xs: ListBuffer[NOM], proc: NOM => Unit): ListBuffer[NOM] = {
+  def msgPop[U <: PubSub](xs: ListBuffer[U], proc: U => Unit): ListBuffer[U] = {
     xs match {
       case ListBuffer() => xs
       case x +: xsLeft =>
@@ -85,26 +85,14 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
         msgPop(xsLeft, proc)
     }
   }
-
-  //  todo: this overloading use to process ReflectMsg
-  def msgPop(xs: ListBuffer[(NOM, Byte)]): ListBuffer[(NOM, Byte)] = {
-    xs match {
-      case ListBuffer() => xs
-      case x +: xsLeft =>
-        user ! ReflectMsg(x._1, x._2)
-        msgPop(xsLeft)
-    }
-  }
-
+  
   def task(): Unit = {
     println("NOM msg processing...")
 
-    receivedNOMList = msgPop(receivedNOMList, user ! RecvMsg(_))
-    discoveredNOMList = msgPop(discoveredNOMList, user ! DiscoverMsg(_))
-    removedNOMList = msgPop(removedNOMList, user ! RemoveMsg(_))
-
-    //  todo: need to improve...
-    reflectedNOMList = msgPop(reflectedNOMList)
+    receivedNOMList = msgPop(receivedNOMList, user ! _)
+    reflectedNOMList = msgPop(reflectedNOMList, user ! _)
+    discoveredNOMList = msgPop(discoveredNOMList, user ! _)
+    removedNOMList = msgPop(removedNOMList, user ! _)
   }
 
   def receive = {
@@ -116,7 +104,7 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
     case ActorRef => setMEB(_)
 
     //  user -> mec: data request
-    case name: String => registerMsg(name)
+    case RegisterMsg => registerMsg(_)
     case UpdateMsg => updateMsg(_)
     case DeleteMsg => deleteMsg(_)
     case SendMsg => sendMsg(_)
