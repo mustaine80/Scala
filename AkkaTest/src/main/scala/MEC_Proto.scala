@@ -1,8 +1,8 @@
-import scala.concurrent.duration._
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Timers}
+import com.typesafe.config.ConfigFactory
 
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration._
 
 private object Start
 
@@ -108,6 +108,9 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
   }
 
   def receive = {
+    // for client msg receiving test.
+    case m: String => println(s"received $m")
+
     //  mec initialize
     case Start => timers.startPeriodicTimer(TickKey, Pop, 1.second)
     case ActorRef => setMEB(_)
@@ -129,15 +132,16 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
   }
 }
 
-
+//  UserManager as network backend. create MEC instance
 object MEC_Test {
   def main(args: Array[String]): Unit = {
-    val system = ActorSystem("nFrameworkActorSystem")
+    val config = ConfigFactory.load("server")
+    val system = ActorSystem("server", config)
 
     val mecSurrogate: ActorRef = null
     val meb: ActorRef = null
 
-    val mec = system.actorOf(Props(new MEC_Proto("CommunicationManager", mecSurrogate, meb)))
+    val mec = system.actorOf(Props(new MEC_Proto("MEC", mecSurrogate, meb)), "mec")
 
     mec ! Start
   }
