@@ -1,7 +1,7 @@
 package com.nframework.mec
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Timers}
-import com.nframework.mec.MEC_Proto.{GetState, Pop, SetMEB, TickKey}
+import com.nframework.mec.MEC_Proto._
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.mutable.ListBuffer
@@ -14,8 +14,12 @@ object MEC_Proto {
   private object Pop
   private object TickKey
 
-  case class SetMEB(sender: ActorRef)
-  case class GetState(receiver: ActorRef)
+  case class MebAttatch(mec: ActorRef)
+  case class GetState(test: ActorRef) /// only test
+
+  def props(test: ActorRef) = {
+    Props(new MEC_Proto("MecTestActor", null, test))
+  }
 }
 
 abstract class PubSub
@@ -33,7 +37,9 @@ case class DiscoverMsg(msg: NOM) extends PubSub
 case class RecvMsg(msg: NOM) extends PubSub
 case class RemoveMsg(msg: NOM) extends PubSub
 
-class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor with Timers {
+class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
+  extends Actor with Timers {
+
   var receivedNOMList = ListBuffer[RecvMsg]()
   var reflectedNOMList = ListBuffer[(ReflectMsg)]()
   var discoveredNOMList = ListBuffer[DiscoverMsg]()
@@ -61,31 +67,31 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
     //  mec initialize
     case Start => timers.startPeriodicTimer(TickKey, Pop, 1.second)
 
-    case mec @ SetMEB(receiver: ActorRef) => meb ! mec
+    case c @ MebAttatch(mec: ActorRef) => meb ! c
 
     //  user -> mec: data request
-    case t @ RegisterMsg(msgName: String, userName: String) => meb ! t
+    case t @ RegisterMsg(msgName, userName) => meb ! t
 
-    case t @ UpdateMsg(nomMsg: NOM) => meb ! t
+    case t @ UpdateMsg(nomMsg) => meb ! t
 
-    case t @ SendMsg(nomMsg: NOM) => meb ! t
+    case t @ SendMsg(nomMsg) => meb ! t
 
-    case t @ DeleteMsg(nomMsg: NOM) => meb ! t
+    case t @ DeleteMsg(nomMsg) => meb ! t
 
 
     //  meb -> mec: data push
-    case s @ DiscoverMsg(msg: NOM) => discoveredNOMList += s
+    case s @ DiscoverMsg(msg) => discoveredNOMList += s
 
-    case s @ ReflectMsg(msg: NOM, buf: Byte) => reflectedNOMList += s
+    case s @ ReflectMsg(msg, buf) => reflectedNOMList += s
 
-    case s @ RecvMsg(msg: NOM) => {
+    case s @ RecvMsg(msg) => {
       //  val msg = nomMsg.clone()
       //  msg.setOwner(userName)
       receivedNOMList += s
     }
 
-    case s @ RemoveMsg(msg: NOM) => {
-      val r = (discoveredNOMList find (_ == s)).get
+    case s @ RemoveMsg(msg) => {
+      val r = (discoveredNOMList find (_.msg == s.msg)).get
       discoveredNOMList -= r
       removedNOMList += RemoveMsg(r.msg)
     }
@@ -94,11 +100,11 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef) extends Actor w
     case Pop => task()
 
     //  using akka-TestKit
-    case GetState(receiver) => {
-      receiver ! discoveredNOMList
-      receiver ! reflectedNOMList
-      receiver ! receivedNOMList
-//      receiver ! removedNOMList
+    case GetState(test) => {
+      test ! discoveredNOMList
+      test ! reflectedNOMList
+      test ! receivedNOMList
+      test ! removedNOMList
     }
 
     // unknown message
