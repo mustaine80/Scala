@@ -1,20 +1,18 @@
 package com.nframework.mec
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props, Timers}
+import akka.actor.{Actor, ActorRef, Props, Timers}
 import com.nframework.mec.MEC_Proto._
-import com.typesafe.config.ConfigFactory
+import com.nframework.nom._
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-import com.nframework.nom._
 
-private object Start
 
 object MEC_Proto {
   private object Pop
   private object TickKey
 
-  case class MebAttatch(mec: ActorRef)
+  case class MebAttatch(name: String)
   case class GetState(test: ActorRef) /// only test
 
   def props(test: ActorRef) = {
@@ -45,6 +43,13 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
   var discoveredNOMList = ListBuffer[DiscoverMsg]()
   var removedNOMList = ListBuffer[RemoveMsg]()
 
+  init()
+
+  def init(): Unit = {
+    meb ! MebAttatch(userName)  /// meb receiver 에서 MebAttatch 에 대한 sender()를 통해 ref 획득
+    timers.startPeriodicTimer(TickKey, Pop, 1.second)
+  }
+
   def msgPop[U <: PubSub](xs: ListBuffer[U], proc: U => Unit): ListBuffer[U] = {
     xs match {
       case ListBuffer() => xs
@@ -64,11 +69,6 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
   }
 
   def receive = {
-    //  mec initialize
-    case Start => timers.startPeriodicTimer(TickKey, Pop, 1.second)
-
-    case c @ MebAttatch(mec: ActorRef) => meb ! c
-
     //  user -> mec: data request
     case t @ RegisterMsg(msgName, userName) => meb ! t
 
@@ -113,16 +113,16 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
 }
 
 //  UserManager as network backend. create MEC instance
-object MEC_Test {
-  def main(args: Array[String]): Unit = {
-    val config = ConfigFactory.load("server")
-    val system = ActorSystem("server", config)
-
-    val mecSurrogate: ActorRef = null
-    val meb: ActorRef = null
-
-    val mec = system.actorOf(Props(new MEC_Proto("MEC", mecSurrogate, meb)), "mec")
-
-    mec ! Start
-  }
-}
+//object MEC_Test {
+//  def main(args: Array[String]): Unit = {
+//    val config = ConfigFactory.load("server")
+//    val system = ActorSystem("server", config)
+//
+//    val mecSurrogate: ActorRef = null
+//    val meb: ActorRef = null
+//
+//    val mec = system.actorOf(Props(new MEC_Proto("MEC", mecSurrogate, meb)), "mec")
+//
+//    mec ! Start
+//  }
+//}

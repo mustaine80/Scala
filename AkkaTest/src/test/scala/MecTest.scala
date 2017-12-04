@@ -1,5 +1,5 @@
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{TestActorRef, TestKit}
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
 import com.nframework.mec.MEC_Proto.GetState
 import com.nframework.mec._
 import com.nframework.nom.{NChar, NOM, NValueType}
