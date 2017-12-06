@@ -7,6 +7,8 @@ import com.nframework.nom.{NChar, NOM, NValueType}
 
 import scala.collection.mutable
 
+
+//  todo: remote actor msg need to seriaize. don't use Java basic serialization
 case class DummyNOM(objName: String, value: NValueType) extends NOM
 
 class MEB_Proto extends Actor {

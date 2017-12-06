@@ -1,8 +1,8 @@
 package com.nframework.mec
 
 import akka.actor.{Actor, ActorRef, Props, Timers}
-import com.nframework.mec.MEC_Proto._
-import com.nframework.nom._
+import com.nframework.mec.MEC_Proto.{MebAttatch, Pop, TickKey, _}
+import com.nframework.nom.NOM
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
