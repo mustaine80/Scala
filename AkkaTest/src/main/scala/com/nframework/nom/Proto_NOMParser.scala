@@ -24,9 +24,9 @@ case class ComplexType_Proto(models: Seq[(String, TypeModel, Int)]) extends Type
 
 case class Field_Proto(name: String, model: TypeModel, size: Int, fixedLength: Int, indicator: Int)
 
-case class Object_Proto(fields: Seq[Field_Proto], sharing: String, alignment: String)
+case class Object_Proto(fields: Seq[Field_Proto], sharing: String, alignment: String) extends TypeModel
 
-case class Interaction_Proto(fields: Seq[Field_Proto], sharing: String, alignment: String)
+case class Interaction_Proto(fields: Seq[Field_Proto], sharing: String, alignment: String) extends TypeModel
 
 object Proto_NOMParser extends Proto_Parser {
   var basicTypes = Map[String, BasicType_Proto]()
@@ -62,8 +62,8 @@ object Proto_NOMParser extends Proto_Parser {
         basicTypes = composeModel(basicTypeMap, makeBasicType)
         enumTypes = composeModel(enumTypeMap, makeEnumType)
         complexTypes = composeModel(complexTypeMap, makeComplexType)
-        objectTypes = composeObjectList(objectMap)
-        interactionTypes = composeInteractionList(interactionMap)
+        objectTypes = composeModel(objectMap, makeObjectType)
+        interactionTypes = composeModel(interactionMap, makeInteractionType)
 
         true
       } else { false }
@@ -114,45 +114,19 @@ object Proto_NOMParser extends Proto_Parser {
   }
 
 
-  def composeObjectList(m: Map[String, Map[String, Map[String, String]]]): Map[String, Object_Proto] = {
-    val data = mutable.Map[String, Object_Proto]()
-
-    m.map( (e: (String, Map[String, Map[String, String]])) => {
-      val name = e._1
-      val fields = for {
-        (alias, typeInfo) <- e._2
-        if (alias != "sharing" && alias != "alignment")
-          field = makeField(alias, typeInfo)
-      } yield field
-
-      val sharing = e._2("sharing").asInstanceOf[String]
-      val alignment = e._2("alignment").asInstanceOf[String]
-
-      (name, Object_Proto(fields.toSeq, sharing, alignment))
-    }).foreach( data += _ )
-
-      Map[String, Object_Proto]() ++ data
+  def makeObjectType(typeInfo: Map[String, Map[String, String]]): Object_Proto = {
+    val sharing = typeInfo("sharing").asInstanceOf[String]
+    val alignment = typeInfo("alignment").asInstanceOf[String]
+    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, typeInfo) => makeField(alias, typeInfo)}.toSeq
+    Object_Proto(fields, sharing, alignment)
   }
 
 
-  def composeInteractionList(m: Map[String, Map[String, Map[String, String]]]): Map[String, Interaction_Proto] = {
-    val data = mutable.Map[String, Interaction_Proto]()
-
-    m.map( (e: (String, Map[String, Map[String, String]])) => {
-      val name = e._1
-      val fields = for {
-        (alias, typeInfo) <- e._2
-        if (alias != "sharing" && alias != "alignment")
-        field = makeField(alias, typeInfo)
-      } yield field
-
-      val sharing = e._2("sharing").asInstanceOf[String]
-      val alignment = e._2("alignment").asInstanceOf[String]
-
-      (name, Interaction_Proto(fields.toSeq, sharing, alignment))
-    }).foreach( data += _ )
-
-    Map[String, Interaction_Proto]() ++ data
+  def makeInteractionType(typeInfo: Map[String, Map[String, String]]): Interaction_Proto = {
+    val sharing = typeInfo("sharing").asInstanceOf[String]
+    val alignment = typeInfo("alignment").asInstanceOf[String]
+    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, typeInfo) => makeField(alias, typeInfo)}.toSeq
+    Interaction_Proto(fields, sharing, alignment)
   }
 
 
@@ -161,7 +135,6 @@ object Proto_NOMParser extends Proto_Parser {
     val size = typeInfo("size").toInt
     val fixedLength = typeInfo("fixedLength").toInt
     val indicator = typeInfo("indicator").toInt
-
     Field_Proto(alias, model, size, fixedLength, indicator)
   }
 
