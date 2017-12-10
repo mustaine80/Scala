@@ -117,7 +117,7 @@ object Proto_NOMParser extends Proto_Parser {
   def makeObjectType(typeInfo: Map[String, Map[String, String]]): Object_Proto = {
     val sharing = typeInfo("sharing").asInstanceOf[String]
     val alignment = typeInfo("alignment").asInstanceOf[String]
-    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, typeInfo) => makeField(alias, typeInfo)}.toSeq
+    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, info) => makeField(alias, info)}.toSeq
     Object_Proto(fields, sharing, alignment)
   }
 
@@ -125,7 +125,7 @@ object Proto_NOMParser extends Proto_Parser {
   def makeInteractionType(typeInfo: Map[String, Map[String, String]]): Interaction_Proto = {
     val sharing = typeInfo("sharing").asInstanceOf[String]
     val alignment = typeInfo("alignment").asInstanceOf[String]
-    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, typeInfo) => makeField(alias, typeInfo)}.toSeq
+    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, info) => makeField(alias, info)}.toSeq
     Interaction_Proto(fields, sharing, alignment)
   }
 
