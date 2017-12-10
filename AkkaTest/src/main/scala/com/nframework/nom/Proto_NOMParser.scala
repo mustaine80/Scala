@@ -16,26 +16,22 @@ trait Proto_Parser {
 abstract class TypeModel
 
 //  todo: need to PrimitiveModel ???
-//  this information is not changable. need to mutable list?
-//  usage: val intBE = BasicType("intBE", 4, "big", Int)
 case class BasicType_Proto(length: Int, endian: String, primitives: AnyRef) extends TypeModel
 
 case class EnumType_Proto(length: Int, enums: Map[String, Int]) extends TypeModel
 
-case class ComplexType_Proto(name: String, model: TypeModel, size: Int) extends TypeModel
+case class ComplexType_Proto(models: Seq[(String, TypeModel, Int)]) extends TypeModel
 
-case class Field_Proto(name: String, models: Seq[TypeModel], size: Int, fixedLength: Int, indicator: Int)
+case class Field_Proto(name: String, model: TypeModel, size: Int, fixedLength: Int, indicator: Int)
 
-//  Object inner variables are 'attribute'
 case class Object_Proto(fields: Seq[Field_Proto], sharing: String, alignment: String)
 
-//  Interaction inner variables are 'parameter'
 case class Interaction_Proto(fields: Seq[Field_Proto], sharing: String, alignment: String)
 
 object Proto_NOMParser extends Proto_Parser {
   var basicTypes = Map[String, BasicType_Proto]()
   var enumTypes = Map[String, EnumType_Proto]()
-  var complexTypes = Map[String, Seq[ComplexType_Proto]]()
+  var complexTypes = Map[String, ComplexType_Proto]()
   var objectTypes = Map[String, Object_Proto]()
   var interactionTypes = Map[String, Interaction_Proto]()
 
@@ -63,9 +59,9 @@ object Proto_NOMParser extends Proto_Parser {
         val objectMap = root("Objects").asInstanceOf[Map[String, Map[String, Map[String, String]]]]
         val interactionMap = root("Interactions").asInstanceOf[Map[String, Map[String, Map[String, String]]]]
 
-        basicTypes = composeBasicTypes(basicTypeMap)
-        enumTypes = composeEnumTypes(enumTypeMap)
-        complexTypes = composeComplexTypeList(complexTypeMap)
+        basicTypes = composeModel(basicTypeMap, makeBasicType)
+        enumTypes = composeModel(enumTypeMap, makeEnumType)
+        complexTypes = composeModel(complexTypeMap, makeComplexType)
         objectTypes = composeObjectList(objectMap)
         interactionTypes = composeInteractionList(interactionMap)
 
@@ -82,52 +78,39 @@ object Proto_NOMParser extends Proto_Parser {
   }
 
 
-  def composeBasicTypes(m: Map[String, Map[String, String]]): Map[String, BasicType_Proto] = {
-    val data = mutable.Map[String, BasicType_Proto]()
-
-    m.map( ( e: (String, Map[String, String]) ) => {
-      val name = e._1
-      val length = e._2("length").toInt
-      val endian = e._2("endian")
-      val _type = e._2("type")
-
-      (name, BasicType_Proto(length, endian, _type))
-    }).foreach( data += _ )
-
-    Map[String, BasicType_Proto]() ++ data
+  def composeModel[T, U <: TypeModel](schema: Map[String, T], proc: T => U): Map[String, U] = {
+    val data = mutable.Map[String, U]()
+    schema.map{
+      case (name, typeInfo) => (name, proc(typeInfo))
+    }.foreach( data += _ )
+    Map[String, U]() ++ data
   }
 
 
-  def composeEnumTypes(m: Map[String, Map[String, String]]): Map[String, EnumType_Proto] = {
-    val data = mutable.Map[String, EnumType_Proto]()
-
-    m.map( (e: (String, Map[String, String]) ) => {
-      val name = e._1
-      val length = e._2("length").toInt
-      val enums = e._2.transform((x, y) => (y.toInt))
-
-      (name, EnumType_Proto(length, enums))
-    }).foreach( data += _ )
-
-    Map[String, EnumType_Proto]() ++ data
+  def makeBasicType(typeInfo: Map[String, String]): BasicType_Proto = {
+    val length = typeInfo("length").toInt
+    val endian = typeInfo("endian")
+    val primitive = typeInfo("type")
+    BasicType_Proto(length, endian, primitive)
   }
 
 
-  def composeComplexTypeList(m: Map[String, Map[String, Map[String, String]]]): Map[String, Seq[ComplexType_Proto]] = {
-    val data = mutable.Map[String, Seq[ComplexType_Proto]]()
+  def makeEnumType(typeInfo: Map[String, String]): EnumType_Proto = {
+    val length = typeInfo("length").toInt
+    val enums = typeInfo.transform((x, y) => (y.toInt))
+    EnumType_Proto(length, enums)
+  }
 
-    m.map((e: (String, Map[String, Map[String, String]])) => {
-      val name = e._1
-      val types = for {
-        (alias, typeInfo) <- e._2
-        model = extractTypeModel(typeInfo("type"))(0)   /// issue: use ComplexType recursively?
-        size = typeInfo("size").toInt
-      } yield ComplexType_Proto(alias, model, size)
 
-      (name, types.toSeq)
-    }).foreach( data += _)
-
-    Map[String, Seq[ComplexType_Proto]]() ++ data
+  def makeComplexType(typeInfo: Map[String, Map[String, String]]): ComplexType_Proto = {
+    val models = typeInfo.map{
+      case(name, _type) => {
+        val model = extractTypeModel(_type("type"))
+        val size = _type("size").toInt
+        (name, model, size)
+      }
+    }.toSeq
+    ComplexType_Proto(models)
   }
 
 
@@ -174,20 +157,20 @@ object Proto_NOMParser extends Proto_Parser {
 
 
   def makeField(alias: String, typeInfo: Map[String, String]): Field_Proto = {
-    val models = extractTypeModel(typeInfo("type"))
+    val model = extractTypeModel(typeInfo("type"))
     val size = typeInfo("size").toInt
     val fixedLength = typeInfo("fixedLength").toInt
     val indicator = typeInfo("indicator").toInt
 
-    Field_Proto(alias, models, size, fixedLength, indicator)
+    Field_Proto(alias, model, size, fixedLength, indicator)
   }
 
 
-  def extractTypeModel(hint: String): Seq[TypeModel] = {
+  def extractTypeModel(hint: String): TypeModel = {
         if (basicTypes.contains(hint))
-          Seq[TypeModel](basicTypes(hint))
+          basicTypes(hint)
         else if (enumTypes.contains(hint))
-          Seq[TypeModel](enumTypes(hint))
+          enumTypes(hint)
         else
           complexTypes(hint)
    }
