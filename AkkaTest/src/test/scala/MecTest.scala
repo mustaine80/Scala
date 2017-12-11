@@ -2,20 +2,18 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import com.nframework.mec.MEC_Proto.GetState
 import com.nframework.mec._
-import com.nframework.nom.{NChar, NOM, NValueType}
+import com.nframework.nom._
 import org.scalatest.{MustMatchers, WordSpecLike}
 
 import scala.collection.mutable.ListBuffer
 
 //  todo: just only use MEC's receive test... need to implement NOM
-case class DummyNOM(objName: String, value: NValueType) extends NOM
-
 class MecTest extends TestKit(ActorSystem("testSystem"))
   with WordSpecLike   /// DSL. BDD style test coding support
   with MustMatchers   /// easy reading assertion support
   with StopSystemAfterAll {
 
-  val dummy = DummyNOM("NChar", NChar('a'))
+  val dummy = DummyNOM("NChar", NChar_Dummy('a'))
 
   "MEC Actor" must {
     val props = MEC_Proto.props(testActor)

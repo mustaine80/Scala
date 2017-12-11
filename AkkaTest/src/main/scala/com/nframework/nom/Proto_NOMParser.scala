@@ -22,7 +22,7 @@ case class EnumType_Proto(length: Int, enums: Map[String, Int]) extends TypeMode
 
 case class ComplexType_Proto(models: Seq[(String, TypeModel, Int)]) extends TypeModel
 
-case class Field_Proto(name: String, model: TypeModel, size: Int, fixedLength: Int, indicator: Int)
+case class Field_Proto(name: String, model: TypeModel, size: Int, fixedLength: Int, indicator: Int) extends TypeModel
 
 case class Object_Proto(fields: Seq[Field_Proto], sharing: String, alignment: String) extends TypeModel
 

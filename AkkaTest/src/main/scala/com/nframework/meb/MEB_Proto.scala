@@ -3,14 +3,13 @@ package com.nframework.meb
 import akka.actor.{Actor, ActorRef}
 import com.nframework.mec.MEC_Proto.MebAttatch
 import com.nframework.mec._
-import com.nframework.nom.{NChar, NOM, NValueType}
+import com.nframework.nom
+import com.nframework.nom.NChar_Dummy
 
 import scala.collection.mutable
 
 
 //  todo: remote actor msg need to seriaize. don't use Java basic serialization
-case class DummyNOM(objName: String, value: NValueType) extends NOM
-
 class MEB_Proto extends Actor {
   val mecMap = mutable.Map[String, ActorRef]()
 
@@ -27,9 +26,9 @@ class MEB_Proto extends Actor {
       mecMap(name) = sender()
 
     case t @ RegisterMsg(msgName, userName) =>
-      println("[MEB] msg register: " + msgName + ", " + userName)
-      val dummy = DummyNOM(msgName, NChar('a'))
-      sender() ! DiscoverMsg(dummy)   /// Seq[ActorRef](Subscribers...).foreach.{_ ! DicoverMsg}
+      println("[MEB] register msg received. : " + msgName + ", from : " + userName)
+      val dummy = nom.DummyNOM(msgName, NChar_Dummy('a'))
+      sender() ! DiscoverMsg(dummy)   /// todo: Seq[ActorRef](Subscribers...).foreach.{_ ! DicoverMsg}
 
     case t @ UpdateMsg(nomMsg) => sender() ! t
 

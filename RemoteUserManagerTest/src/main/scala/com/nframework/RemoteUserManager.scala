@@ -19,7 +19,7 @@ class ControlManager(meb: ActorRef) extends Actor {
   def receive = {
     //  mec -> user
     //  todo: need to NOM serialization
-    case DiscoverMsg(msg) => println("[Control Manager] msg discovered. " + msg)
+    case DiscoverMsg(msg) => println("[Control Manager] discover msg received. " + msg)
     case ReflectMsg(msg, buf) =>
     case RecvMsg(msg) =>
     case RemoveMsg(msg) =>
@@ -35,7 +35,7 @@ class RemoteUserManager_Test(selection: ActorSelection, path: String) extends Ac
     case ActorIdentity(_, Some(actorRef)) =>
       val controlManager = context.actorOf(Props(new ControlManager(actorRef)), "ControlManager")
 
-    case _ => "not implement for remote actor"
+    case _ => println("not implement for remote actor")
   }
 }
 

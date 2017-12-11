@@ -19,7 +19,7 @@ class SimulationManager(meb: ActorRef) extends Actor {
   //  todo: need to implement
   def receive = {
     //  mec -> user
-    case DiscoverMsg(msg) => println("[Simulation Manager] msg discovered. " + msg)
+    case DiscoverMsg(msg) => println("[Simulation Manager] discover msg received. " + msg)
     case ReflectMsg(msg, buf) =>
     case RecvMsg(msg) =>
     case RemoveMsg(msg) =>

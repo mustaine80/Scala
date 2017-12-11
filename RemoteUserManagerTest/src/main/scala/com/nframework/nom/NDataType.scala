@@ -1,6 +1,60 @@
 package com.nframework.nom
 
-abstract class NOM
+sealed abstract class NOM
+
+case class DummyNOM(objName: String, value: NChar_Dummy) extends NOM
+
+case class NChar_Dummy(value: Char) extends NOM with NValueType {
+  def this() = this(' ')
+  def toInt(): Int = {
+    value.asInstanceOf[Int]
+  }
+
+  def toShort(): Short = {
+    value.asInstanceOf[Short]
+  }
+
+  def toChar(): Char = {
+    value.asInstanceOf[Char]
+  }
+
+  def toByte(): Byte = {
+    value.asInstanceOf[Byte]
+  }
+
+  def toFloat(): Float = {
+    value.asInstanceOf[Float]
+  }
+
+  def toDouble(): Double = {
+    value.asInstanceOf[Double]
+  }
+
+  override def toString(): String = {
+    value.toString()
+  }
+
+  def setValue(valueType: NValueType) : Boolean = {
+    true
+  }
+
+  def getClone() : NValueType = {
+    NChar_Dummy(0x5)
+  }
+
+  def copyTo(to: NValueType) {
+    to.asInstanceOf[NChar].value = value
+  }
+
+  def serialize(length: Int) : Array[Byte] = {
+    Array(value.asInstanceOf[Byte])
+  }
+
+  def deserialize(data: Array[Byte], offset: Int) : Int = {
+    val length: Int = 1
+    length
+  }
+}
 
 trait NDataType {
   var name = ""
