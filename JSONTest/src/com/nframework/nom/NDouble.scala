@@ -5,9 +5,9 @@ import java.nio.ByteBuffer
 class NDouble(s: Double) extends NValueType {
   var value: Double = s
   
-  dataType = EDataType.SHORT
-  length = 2
-  typeLength = 2
+  dataType = EDataType.DOUBLE
+  length = 8
+  typeLength = 8
   
   def this() = this(0)
   
@@ -80,7 +80,6 @@ class NDouble(s: Double) extends NValueType {
   }
   
   def deserialize(data: Array[Byte], offset: Int) : Int = {
-    val length: Int = 4
     var v: Double = 0
     
     val arr = new Array[Byte](length) 

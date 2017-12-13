@@ -5,9 +5,9 @@ import java.nio.ByteBuffer
 class NFloat(s: Float) extends NValueType {
   var value: Float = s
   
-  dataType = EDataType.SHORT
-  length = 2
-  typeLength = 2
+  dataType = EDataType.FLOAT
+  length = 4
+  typeLength = 4
   
   def this() = this(0)
   
@@ -80,7 +80,6 @@ class NFloat(s: Float) extends NValueType {
   }
   
   def deserialize(data: Array[Byte], offset: Int) : Int = {
-    val length: Int = 4
     var v: Float = 0
     
     val arr = new Array[Byte](length) 
