@@ -59,8 +59,8 @@ class NBool(b: Boolean) extends NValueType {
     to.asInstanceOf[NBool].value = value
   }
   
-  def serialize(length: Int) : Array[Byte] = {
-    Array(value.asInstanceOf[Byte])
+  def serialize() : (Array[Byte], Int) = {
+    ( Array(value.asInstanceOf[Byte]), 1 )
   }
   
   def deserialize(data: Array[Byte], offset: Int) : Int = {

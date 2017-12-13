@@ -41,7 +41,7 @@ trait NValueType {
   def setValue(valueType: NValueType) : Boolean
   def getClone() : NValueType
   def copyTo(to: NValueType)
-  def serialize(length: Int) : Array[Byte]
+  def serialize() : (Array[Byte], Int)
   def deserialize(data: Array[Byte], offset: Int) : Int
 }
 

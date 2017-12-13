@@ -178,4 +178,17 @@ object JSONTest extends App {
   // import scala.math.BigInt
   // println( BigInt(1).toByteArray.mkString(", ") )
   // println( BigInt(0x12345678).toByteArray.length )  
+  
+  val bb = java.nio.ByteBuffer.allocate(4)
+    
+  bb.putInt(0x12345678)
+  
+  var buffer = bb.array()
+  val rev = NValueType.reverseBytes(buffer)
+  
+  println(buffer.mkString(", "))
+  println(rev.mkString(", "))
+  
+  println(java.nio.ByteBuffer.wrap(buffer).getInt)
+  println(java.nio.ByteBuffer.wrap(rev).getInt)
 }

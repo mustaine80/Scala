@@ -1,7 +1,9 @@
 package com.nframework.nom
 
-class NShort(s: Short) extends NValueType {
-  var value: Short = s
+import java.nio.ByteBuffer
+
+class NInteger(s: Integer) extends NValueType {
+  var value: Integer = s
   
   dataType = EDataType.SHORT
   length = 2
@@ -38,13 +40,13 @@ class NShort(s: Short) extends NValueType {
   }
   
   def setValue(valueType: NValueType) : Boolean = {
-    this.value = valueType.asInstanceOf[NShort].value
+    this.value = valueType.asInstanceOf[NInteger].value
     
     true
   }
   
   def getClone() : NValueType = {
-    val clone = new NShort(value)
+    val clone = new NInteger(value)
     
     clone.value = value
     clone.bigEndian = bigEndian
@@ -56,10 +58,11 @@ class NShort(s: Short) extends NValueType {
   }
   
   def copyTo(to: NValueType) {
-    to.asInstanceOf[NShort].value = value
+    to.asInstanceOf[NInteger].value = value
   }
   
   def serialize() : (Array[Byte], Int) = {
+    //val buffer = new scala.collection.mutable.ArrayBuffer[Byte]
     val bb = java.nio.ByteBuffer.allocate(length)
     
     bb.putInt(value)
@@ -77,18 +80,17 @@ class NShort(s: Short) extends NValueType {
   }
   
   def deserialize(data: Array[Byte], offset: Int) : Int = {
-    val length: Int = 2
-    var v: Short = 0
+    val length: Int = 4
+    var v: Integer = 0
     
     val arr = new Array[Byte](length) 
       
     data.copyToArray(arr, offset, length)
     
     if(bigEndian) {
-      // java.nio.ByteBuffer 기본 설정이 big endian이므로 little일 경우에만 byte 배열을 뒤집어서 디코딩한다.
-      v = java.nio.ByteBuffer.wrap(arr).getShort
+      v = java.nio.ByteBuffer.wrap(arr).getInt
     } else {
-      v = java.nio.ByteBuffer.wrap( NValueType.reverseBytes(arr) ).getShort
+      v = java.nio.ByteBuffer.wrap( NValueType.reverseBytes(arr) ).getInt
     }
     
     value = v
@@ -97,7 +99,7 @@ class NShort(s: Short) extends NValueType {
   }
 }
 
-object NShort {
-  def apply(s: Short) = new NShort(s)
-  def apply(s: NShort) = new NShort(s.value)
+object NInteger {
+  def apply(s: Integer) = new NInteger(s)
+  def apply(s: NInteger) = new NInteger(s.value)
 }
