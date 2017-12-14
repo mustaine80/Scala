@@ -53,6 +53,8 @@ class MecTest extends TestKit(ActorSystem("testSystem"))
         case UpdateMsg(msg: NOM) => msg must be(dummy)
         case SendMsg(msg: NOM) => msg must be(dummy)
         case DeleteMsg(msg: NOM)=> msg must be(dummy)
+
+        case _ => println("Dont' care. Msg is not defined in this test.")
       }
     }
   }
