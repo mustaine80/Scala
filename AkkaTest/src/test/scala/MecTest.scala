@@ -25,7 +25,7 @@ class MecTest extends TestKit(ActorSystem("testSystem"))
       mec ! DiscoverMsg(dummy)
       mec ! GetState(testActor)
 
-      mec ! ReflectMsg(dummy, 0x5)
+      mec ! ReflectMsg(dummy, Array[Byte](5))
       mec ! GetState(testActor)
 
       mec ! RecvMsg(dummy)

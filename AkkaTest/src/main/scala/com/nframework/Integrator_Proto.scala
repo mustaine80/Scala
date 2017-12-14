@@ -6,14 +6,15 @@ import com.nframework.mec._
 import com.typesafe.config.ConfigFactory
 
 class SimulationManager(meb: ActorRef) extends Actor {
-  val mec = context.actorOf(Props(new MEC_Proto("", context.self, meb)), "MEC_SimulationManager")
+  val mec = context.actorOf(Props(new MEC_Proto("SimulationManager", context.self, meb)), "MEC_SimulationManager")
   val managerName = "Simulation Manager"
 
   init()
 
   def init(): Unit = {
     println("simulation manager initialize ...")
-    mec ! RegisterMsg("0xAA01", managerName)
+    Thread.sleep(5000)    //  todo: 현재 MEB 에 msg sharing 정보 전파 이후에 RegisterMsg 요청이 가능함. 보완 필요
+    mec ! RegisterMsg("object1", managerName)
   }
 
   //  todo: need to implement

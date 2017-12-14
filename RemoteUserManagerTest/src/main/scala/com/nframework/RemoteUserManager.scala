@@ -5,14 +5,15 @@ import com.typesafe.config.ConfigFactory
 import com.nframework.mec._
 
 class ControlManager(meb: ActorRef) extends Actor {
-  val mec = context.actorOf(Props(new MEC_Proto("", context.self, meb)), "MEC_ControlManager")
+  val mec = context.actorOf(Props(new MEC_Proto("ControlManager", context.self, meb)), "MEC_ControlManager")
   val managerName = "Control Manager"
 
   init()
 
   def init(): Unit = {
     println("control manager initialize ...")
-    mec ! RegisterMsg("CBIT", managerName)
+    Thread.sleep(5000)    //  todo: 현재 MEB 에 msg sharing 정보 전파 이후에 RegisterMsg 요청이 가능함. 보완 필요
+    mec ! RegisterMsg("object2", managerName)
   }
 
   //  todo: need to implement
