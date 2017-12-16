@@ -80,6 +80,7 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
 
 
   //  todo: Seq 를 한번에 넘겨야 하는데, 직렬화 처리에 문제가 있다. 일단 elem 단위로 넘긴다.
+  //  todo: parsing 결과에 대해서도 future 처리가 필요하다.
   def pubSubInfoForwarding: Unit = {
     Proto_NOMParser.parse("src/main/Resources/test.json")
     Proto_NOMParser.objectTypes.foreach{ case (msgName, obj) => meb ! PubSubInfo(msgName, userName, obj.sharing) }
@@ -95,9 +96,7 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     case m: DeleteMsg => meb ! m
 
     //  meb -> mec: data push
-    case m: DiscoverMsg =>
-      println("MEC **** discovered..." + m)
-      discoveredNOMList += m
+    case m: DiscoverMsg => discoveredNOMList += m
     case m: ReflectMsg => reflectedNOMList += m
     case m: RecvMsg => {
       //  todo: need to implement

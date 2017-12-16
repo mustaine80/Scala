@@ -97,9 +97,7 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     case m: DeleteMsg => meb ! m
 
     //  meb -> mec: data push
-    case m: DiscoverMsg =>
-      println("MEC **** discovered..." + m)
-      discoveredNOMList += m
+    case m: DiscoverMsg => discoveredNOMList += m
     case m: ReflectMsg => reflectedNOMList += m
     case m: RecvMsg => {
       //  todo: need to implement

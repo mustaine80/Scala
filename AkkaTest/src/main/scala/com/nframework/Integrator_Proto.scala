@@ -17,14 +17,14 @@ object SimulationManager {
 }
 
 class SimulationManager(meb: ActorRef) extends Actor {
-  val mec = context.actorOf(Props(new MEC_Proto("SimulationManager", context.self, meb)), "MEC_SimulationManager")
   val managerName = "Simulation Manager"
+  val mec = context.actorOf(Props(new MEC_Proto("Simulation Manager", context.self, meb)), "MEC_SimulationManager")
 
   init()
 
   def init(): Unit = {
     println("simulation manager initialize ...")
-    Thread.sleep(5000)    //  todo: 현재 MEB 에 msg sharing 정보 전파 이후에 RegisterMsg 요청이 가능함. 보완 필요 (Future?)
+    Thread.sleep(5000)    //  todo: 현재 MEB 에 msg sharing 정보 전파 이후에 RegisterMsg 요청이 가능함. 보완 필요
     doFlight()
   }
 
@@ -62,9 +62,9 @@ class SimulationManager(meb: ActorRef) extends Actor {
   def receive = {
     //  mec -> user
     case DiscoverMsg(msg) => println("[Simulation Manager] discover msg received. " + msg)
-    case ReflectMsg(msg) =>
-    case RecvMsg(msg) =>
-    case RemoveMsg(msg) =>
+    case ReflectMsg(msg) => println("[Simulation Manager] Reflect msg received. " + msg)
+    case RecvMsg(msg) => println("[Simulation Manager] Recv msg received. " + msg)
+    case RemoveMsg(msg) => println("[Simulation Manager] Remove msg received. " + msg)
   }
 }
 

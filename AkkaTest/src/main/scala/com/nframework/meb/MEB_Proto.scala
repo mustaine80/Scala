@@ -79,25 +79,32 @@ object PubSubTable {
    *
    *  TODO: 일단 ReflectMsg 는 buffer 없는 구현을 사용한다. 추후 NOM 구현과 PubSubSerializer 변경에 따라 달라져야 한다.   *
    */
-  def notifyAll(ps: PubSub): Unit = ps match {
+  def notifyAll(ps: PubSub, publisher: ActorRef): Unit = ps match {
     case RegisterMsg(msgName, userName) =>
       if (pubs.contains(msgName))
-        subs(msgName).foreach(MEB_Proto.mecMap(_)
+        subs(msgName).filter(_ != userName).foreach(MEB_Proto.mecMap(_)
           ! DiscoverMsg(List[NOM](DummyNOM(msgName, NChar_Dummy('a')))))    /// todo: dummy Impl
       else
         println("RegisterMsg error. Sharing attribute is not 'Publish'")
 
     case UpdateMsg(msg) =>
-      subs(msg(0).getName).foreach(MEB_Proto.mecMap(_)
-        ! ReflectMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a')))))  /// todo: dummy Impl
+      subs(msg(0).getName).foreach{ x =>
+        val subscriber = MEB_Proto.mecMap(x)
+        if (subscriber != publisher)
+          subscriber ! ReflectMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))} /// todo: dummy Impl
+
 
     case SendMsg(msg) =>
-      subs(msg(0).getName).foreach(MEB_Proto.mecMap(_)
-        ! RecvMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))) /// todo: dummy Impl
+      subs(msg(0).getName).foreach{ x =>
+        val subscriber = MEB_Proto.mecMap(x)
+        if (subscriber != publisher)
+          subscriber ! RecvMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))} /// todo: dummy Impl
 
     case DeleteMsg(msg) =>
-      subs(msg(0).getName).foreach(MEB_Proto.mecMap(_)
-        ! RemoveMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))) /// todo: dummy Impl
+      subs(msg(0).getName).foreach{ x =>
+        val subscriber = MEB_Proto.mecMap(x)
+        if (subscriber != publisher)
+          subscriber ! RemoveMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))} /// todo: dummy Impl
   }
 }
 
@@ -131,7 +138,7 @@ class MEB_Proto extends Actor {
 
     case m: PubSub =>
       println("MEB pub/sub msg received...")
-      PubSubTable.notifyAll(m)
+      PubSubTable.notifyAll(m, sender())    /// publisher 에게 자신의 토픽이 되돌아 오는 것을 막기 위해 sender ref 가 필요하다.
 
     case m: String => println(s"received $m")
   }

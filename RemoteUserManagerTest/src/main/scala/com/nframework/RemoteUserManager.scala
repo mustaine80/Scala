@@ -16,8 +16,8 @@ object ControlManager {
 
 
 class ControlManager(meb: ActorRef) extends Actor {
-  val mec = context.actorOf(Props(new MEC_Proto("ControlManager", context.self, meb)), "MEC_ControlManager")
   val managerName = "Control Manager"
+  val mec = context.actorOf(Props(new MEC_Proto(managerName, context.self, meb)), "MEC_ControlManager")
 
   init()
 
