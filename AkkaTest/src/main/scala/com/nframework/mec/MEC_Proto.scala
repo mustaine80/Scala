@@ -32,18 +32,16 @@ abstract class PubSub
 
 /// msg: mec -> meb
 case class RegisterMsg(msgName: String, userName: String) extends PubSub
-case class UpdateMsg(msg: NOM) extends PubSub
-case class SendMsg(msg: NOM) extends PubSub
-case class DeleteMsg(msg: NOM) extends PubSub
+case class UpdateMsg(msg: List[NOM]) extends PubSub
+case class SendMsg(msg: List[NOM]) extends PubSub
+case class DeleteMsg(msg: List[NOM]) extends PubSub
 
 
 /// msg: meb -> mec
-case class DiscoverMsg(msg: NOM) extends PubSub
-
-/*  buffers 에는 NOM serialize() 를 이용한 byte stream 이 들어가야 한다. */
-case class ReflectMsg(msg: NOM, buffers: Array[Byte]) extends PubSub
-case class RecvMsg(msg: NOM) extends PubSub
-case class RemoveMsg(msg: NOM) extends PubSub
+case class DiscoverMsg(msg: List[NOM]) extends PubSub
+case class ReflectMsg(msg: List[NOM]) extends PubSub
+case class RecvMsg(msg: List[NOM]) extends PubSub
+case class RemoveMsg(msg: List[NOM]) extends PubSub
 
 
 class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
@@ -97,7 +95,9 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     case m: DeleteMsg => meb ! m
 
     //  meb -> mec: data push
-    case m: DiscoverMsg => discoveredNOMList += m
+    case m: DiscoverMsg =>
+      println("MEC **** discovered..." + m)
+      discoveredNOMList += m
     case m: ReflectMsg => reflectedNOMList += m
     case m: RecvMsg => {
       //  todo: need to implement

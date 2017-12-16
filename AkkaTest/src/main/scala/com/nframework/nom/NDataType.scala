@@ -5,6 +5,10 @@ sealed abstract class NOM {
   def getName: String
 }
 
+case class DummyHead(objName: String) extends NOM {
+  override def getName: String = objName
+}
+
 case class DummyNOM(objName: String, value: NChar_Dummy) extends NOM {
   override def getName: String = objName
 }

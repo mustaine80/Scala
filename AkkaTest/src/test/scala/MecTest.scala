@@ -13,7 +13,7 @@ class MecTest extends TestKit(ActorSystem("testSystem"))
   with MustMatchers   /// easy reading assertion support
   with StopSystemAfterAll {
 
-  val dummy = DummyNOM("NChar", NChar_Dummy('a'))
+  val dummy = List[NOM](DummyNOM("NChar", NChar_Dummy('a')))
 
   "MEC Actor" must {
     val props = MEC_Proto.props(testActor)
@@ -25,7 +25,7 @@ class MecTest extends TestKit(ActorSystem("testSystem"))
       mec ! DiscoverMsg(dummy)
       mec ! GetState(testActor)
 
-      mec ! ReflectMsg(dummy, Array[Byte](5))
+      mec ! ReflectMsg(dummy)
       mec ! GetState(testActor)
 
       mec ! RecvMsg(dummy)
@@ -41,18 +41,17 @@ class MecTest extends TestKit(ActorSystem("testSystem"))
 
       expectMsgPF() {
         case ListBuffer(DiscoverMsg(msg)) => msg must be(dummy)
-        case ListBuffer(ReflectMsg(msg, buf)) =>
+        case ListBuffer(ReflectMsg(msg)) =>
           msg must be(dummy)
-          buf must be(0x5)
         case ListBuffer(RecvMsg(msg)) => msg must be(dummy)
         case ListBuffer(RemoveMsg(msg)) => msg must be(dummy)
 
         case RegisterMsg(msgName, userName) =>
           msgName must be("Fire")
           userName must be("SimMgr")
-        case UpdateMsg(msg: NOM) => msg must be(dummy)
-        case SendMsg(msg: NOM) => msg must be(dummy)
-        case DeleteMsg(msg: NOM)=> msg must be(dummy)
+        case UpdateMsg(msg) => msg must be(dummy)
+        case SendMsg(msg) => msg must be(dummy)
+        case DeleteMsg(msg)=> msg must be(dummy)
 
         case _ => println("Dont' care. Msg is not defined in this test.")
       }

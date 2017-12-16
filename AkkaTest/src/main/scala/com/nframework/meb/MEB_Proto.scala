@@ -3,7 +3,7 @@ package com.nframework.meb
 import akka.actor.{Actor, ActorRef}
 import com.nframework.mec.MEC_Proto.{MebAttatch, PubSubInfo}
 import com.nframework.mec._
-import com.nframework.nom.{DummyNOM, NChar_Dummy}
+import com.nframework.nom.{DummyNOM, NChar_Dummy, NOM}
 
 import scala.collection.mutable
 
@@ -73,23 +73,31 @@ object PubSubTable {
   }
 
   /*  MEC 요청을 수신하여 subscriber manager 들을 찾는다. 그리고 mapping 된 msg 를 보낸다.
-   *  todo: Update 를 처리하기 위해서는 MEC 로부터 실제 메시지 객체에 대한 직렬화된 바이트 스트림이 넘어와야 한다.
-   *  UpdateMsg(nom, serializedObject), ReflectMSg(nom, deserializedObject) 이렇게 구성해야 할 것 같은테 직렬화 처리가 아직 안되어 있음
-   *  pending 한다.
+   *  현재 BooPickle 을 사용한 구현에서는 객체 Replication 을 위한 buffer 가 필요없다.
+   *
+   *  todo: update 시 full object 가 아닌 실제 변경이 일어난 부분 정보만 전달할 수 있는 기능이 필요할 것 같다.
+   *
+   *  TODO: 일단 ReflectMsg 는 buffer 없는 구현을 사용한다. 추후 NOM 구현과 PubSubSerializer 변경에 따라 달라져야 한다.   *
    */
-  def lookup(msg: PubSub): Unit = msg match {
+  def notifyAll(ps: PubSub): Unit = ps match {
     case RegisterMsg(msgName, userName) =>
-      println(subs.keys)
-      subs(msgName).foreach(MEB_Proto.mecMap(_) ! DiscoverMsg(DummyNOM(msgName, NChar_Dummy('a'))))
+      if (pubs.contains(msgName))
+        subs(msgName).foreach(MEB_Proto.mecMap(_)
+          ! DiscoverMsg(List[NOM](DummyNOM(msgName, NChar_Dummy('a')))))    /// todo: dummy Impl
+      else
+        println("RegisterMsg error. Sharing attribute is not 'Publish'")
 
     case UpdateMsg(msg) =>
-      subs(msg.getName).foreach(MEB_Proto.mecMap(_) ! ReflectMsg(DummyNOM(msg.getName, NChar_Dummy('a')), Array[Byte](5)))
+      subs(msg(0).getName).foreach(MEB_Proto.mecMap(_)
+        ! ReflectMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a')))))  /// todo: dummy Impl
 
     case SendMsg(msg) =>
-      subs(msg.getName).foreach(MEB_Proto.mecMap(_) ! RecvMsg(DummyNOM(msg.getName, NChar_Dummy('a'))))
+      subs(msg(0).getName).foreach(MEB_Proto.mecMap(_)
+        ! RecvMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))) /// todo: dummy Impl
 
     case DeleteMsg(msg) =>
-      subs(msg.getName).foreach(MEB_Proto.mecMap(_) ! RemoveMsg(DummyNOM(msg.getName, NChar_Dummy('a'))))
+      subs(msg(0).getName).foreach(MEB_Proto.mecMap(_)
+        ! RemoveMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))) /// todo: dummy Impl
   }
 }
 
@@ -117,9 +125,13 @@ class MEB_Proto extends Actor {
     case m: PubSubInfo => {
       println("MEB Pub/Sub register, " + m)
       PubSubTable.register(m)
+      println("MEB pusbs. " + PubSubTable.pubs)
+      println("MEB susbs. " + PubSubTable.subs)
     }
 
-    case m: PubSub => PubSubTable.lookup(m)
+    case m: PubSub =>
+      println("MEB pub/sub msg received...")
+      PubSubTable.notifyAll(m)
 
     case m: String => println(s"received $m")
   }

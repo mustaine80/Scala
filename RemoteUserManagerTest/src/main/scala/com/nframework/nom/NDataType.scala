@@ -1,11 +1,23 @@
 package com.nframework.nom
 
-sealed abstract class NOM
+/*  NOM 에 대한 name 은 알고 있어야 하지 않나? 일단 추상 메소드로 정의한다.  */
+sealed abstract class NOM {
+  def getName: String
+}
 
-case class DummyNOM(objName: String, value: NChar_Dummy) extends NOM
+case class DummyHead(objName: String) extends NOM {
+  override def getName: String = objName
+}
+
+case class DummyNOM(objName: String, value: NChar_Dummy) extends NOM {
+  override def getName: String = objName
+}
 
 case class NChar_Dummy(value: Char) extends NOM with NValueType {
+  override def getName: String = toString
+
   def this() = this(' ')
+
   def toInt(): Int = {
     value.asInstanceOf[Int]
   }
