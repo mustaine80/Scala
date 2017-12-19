@@ -44,7 +44,7 @@ object NOMParser extends Parser {
   var objectMap: Map[String, Object] = null
   var interactionMap: Map[String, Interaction] = null
   
-  val primitiveTypeMap = collection.mutable.HashMap.empty[String, Int]
+  val primitiveTypeMap = collection.mutable.HashMap.empty[String, EDataType.Value]
   val msgMap = collection.mutable.HashMap.empty[String, NMessage]
   val msgIDMap = collection.mutable.HashMap.empty[Int, NMessage]
   val msgList = collection.mutable.ListBuffer.empty[NMessage]
@@ -82,17 +82,17 @@ object NOMParser extends Parser {
     
     clearMessageList()
     
-    primitiveTypeMap += ("Bool" -> EDataType.BOOL.asInstanceOf[Int])
-    primitiveTypeMap += ("Byte" -> EDataType.BYTE.asInstanceOf[Int])
-    primitiveTypeMap += ("Char" -> EDataType.CHAR.asInstanceOf[Int])
-    primitiveTypeMap += ("Short" -> EDataType.SHORT.asInstanceOf[Int])
-    primitiveTypeMap += ("Integer" -> EDataType.INTEGER.asInstanceOf[Int])
-    primitiveTypeMap += ("Float" -> EDataType.FLOAT.asInstanceOf[Int])
-    primitiveTypeMap += ("Double" -> EDataType.DOUBLE.asInstanceOf[Int])
-    primitiveTypeMap += ("String" -> EDataType.STRING.asInstanceOf[Int])
-    primitiveTypeMap += ("Variable" -> EDataType.VARIABLE.asInstanceOf[Int])
-    primitiveTypeMap += ("FixedString" -> EDataType.FIXED_STRING.asInstanceOf[Int])
-    primitiveTypeMap += ("FixedDatum" -> EDataType.FIXED_DATUM.asInstanceOf[Int])
+    primitiveTypeMap += ("Bool" -> EDataType.BOOL)
+    primitiveTypeMap += ("Byte" -> EDataType.BYTE)
+    primitiveTypeMap += ("Char" -> EDataType.CHAR)
+    primitiveTypeMap += ("Short" -> EDataType.SHORT)
+    primitiveTypeMap += ("Integer" -> EDataType.INTEGER)
+    primitiveTypeMap += ("Float" -> EDataType.FLOAT)
+    primitiveTypeMap += ("Double" -> EDataType.DOUBLE)
+    primitiveTypeMap += ("String" -> EDataType.STRING)
+    primitiveTypeMap += ("Variable" -> EDataType.VARIABLE)
+    primitiveTypeMap += ("FixedString" -> EDataType.FIXED_STRING)
+    primitiveTypeMap += ("FixedDatum" -> EDataType.FIXED_DATUM)
 
 
     val json = JSON.parseFull(jsonstrutf8)
@@ -254,7 +254,7 @@ object NOMParser extends Parser {
   
   def getMessageIDMap() : Map[Int, NMessage] = msgIDMap.toMap
   
-  def getPrimitiveTypeMap() : Map[String, Int] = primitiveTypeMap.toMap
+  def getPrimitiveTypeMap() : Map[String, EDataType.Value] = primitiveTypeMap.toMap
   
   def getBasicTypeMap() : Map[String, BasicType] = basicTypeMap.toMap
   
