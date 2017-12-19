@@ -3,7 +3,7 @@ package com.nframework.meb
 import akka.actor.{Actor, ActorRef}
 import com.nframework.mec.MEC_Proto.{MebAttatch, PubSubInfo}
 import com.nframework.mec._
-import com.nframework.nom.{DummyNOM, NChar_Dummy, NOM}
+import com.nframework.nom.NMessage
 
 import scala.collection.mutable
 
@@ -23,16 +23,10 @@ object PubSubTable {
         case None => pubs(info.msgName) = mutable.Set[String](info.managerName)
       }
 
-      subs.get(info.msgName) match {
-        case Some(x) => x -= info.managerName
-        case None =>
-      }
+      subs.get(info.msgName).foreach(x => x -= info.managerName)
 
     case "Subscribe" =>
-      pubs.get(info.msgName) match {
-        case Some(x) => x -= info.managerName
-        case None =>
-      }
+      pubs.get(info.msgName).foreach(x => x -= info.managerName)
 
       subs.get(info.msgName) match {
         case Some(x) => x += info.managerName
@@ -51,15 +45,8 @@ object PubSubTable {
       }
 
     case "Neither" =>
-      pubs.get(info.msgName) match {
-        case Some(x) => x -= info.managerName
-        case None =>
-      }
-
-      subs.get(info.msgName) match {
-        case Some(x) => x -= info.managerName
-        case None =>
-      }
+      pubs.get(info.msgName).foreach(x => x -= info.managerName)
+      subs.get(info.msgName).foreach(x => x -= info.managerName)
   }
 
   /*  user manager actor 가 resign 되어 unregister 하는 경우를 가정한다.
@@ -83,28 +70,28 @@ object PubSubTable {
     case RegisterMsg(msgName, userName) =>
       if (pubs.contains(msgName))
         subs(msgName).filter(_ != userName).foreach(MEB_Proto.mecMap(_)
-          ! DiscoverMsg(List[NOM](DummyNOM(msgName, NChar_Dummy('a')))))    /// todo: dummy Impl
+          ! DiscoverMsg(NMessage(msgName, Array[Byte](0))))    /// Discover 정보는 msgName 만 사용한다.
       else
         println("RegisterMsg error. Sharing attribute is not 'Publish'")
 
     case UpdateMsg(msg) =>
-      subs(msg(0).getName).foreach{ x =>
+      subs(msg.name).foreach{ x =>
         val subscriber = MEB_Proto.mecMap(x)
         if (subscriber != publisher)
-          subscriber ! ReflectMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))} /// todo: dummy Impl
+          subscriber ! ReflectMsg(msg) }
 
 
     case SendMsg(msg) =>
-      subs(msg(0).getName).foreach{ x =>
+      subs(msg.name).foreach{ x =>
         val subscriber = MEB_Proto.mecMap(x)
         if (subscriber != publisher)
-          subscriber ! RecvMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))} /// todo: dummy Impl
+          subscriber ! RecvMsg(msg) }
 
     case DeleteMsg(msg) =>
-      subs(msg(0).getName).foreach{ x =>
+      subs(msg.name).foreach{ x =>
         val subscriber = MEB_Proto.mecMap(x)
         if (subscriber != publisher)
-          subscriber ! RemoveMsg(List[NOM](DummyNOM(msg(0).getName, NChar_Dummy('a'))))} /// todo: dummy Impl
+          subscriber ! RemoveMsg(msg) }
   }
 }
 

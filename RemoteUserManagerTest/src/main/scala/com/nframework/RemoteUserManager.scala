@@ -1,17 +1,71 @@
 package com.nframework
 
 import akka.actor.{Actor, ActorIdentity, ActorRef, ActorSelection, ActorSystem, Identify, Props}
-import com.typesafe.config.ConfigFactory
 import com.nframework.mec._
-import com.nframework.nom._
+import com.nframework.nom.{NDouble, NInteger, _}
+import com.typesafe.config.ConfigFactory
+
+import scala.collection.mutable
+
+
+case class Flight(id: Int, velocity: Double, position: Double)
+case class PowerOn(systemID: Int, subsystemID: Int)
 
 object ControlManager {
   /** todo: NOMParser 의 parsing 정보는 1회만 생성하고 이를 가져다 쓰는 방식이어야 하는데, 현재는 필요시 생성하여 쓰는 방식이다.
     * immutable 하게 생성하여 get 하는 방식으로 보완해야 한다.
     */
-  NOMParser.parse("src/main/Resources/test.json")
+  Proto_NOMParser.parse("src/main/Resources/test.json")
   val objects = Proto_NOMParser.objectTypes
   val interactions = Proto_NOMParser.interactionTypes
+
+  var DiscoverMap = mutable.Map.empty[String, Function1[Array[Byte], AnyRef]]
+
+
+  /** 발행(pub)할 토픽 정보를 직렬화 하는 함수를 사용자가 구현한다.
+    * 구독(sub)할 토픽 정보를 역직렬화 하는 함수를 사용자가 구현한다.
+    * todo: NOM schema 를 이용하여 자동화할 필요가 있다.
+    */
+
+  //  Flight
+  def serializeFlight(flight: Flight): Array[Byte] = {
+    NInteger(flight.id).serialize()._1 ++
+      NDouble(flight.velocity).serialize()._1 ++
+      NDouble(flight.position).serialize()._1
+  }
+
+  def deserializeFlight(data: Array[Byte]): Flight = {
+    var offset = 0
+    val id = NInteger(0)
+    val velocity = NDouble(0.0)
+    val position = NDouble(0.0)
+
+    offset = id.deserialize(data, offset)
+    offset += velocity.deserialize(data, offset)
+    offset += position.deserialize(data, offset)
+
+    Flight(id.value, velocity.value, position.value)
+  }
+
+
+  //  PowerOn
+  def serializePowerOn(powerOn: PowerOn): Array[Byte] = {
+    NInteger(powerOn.systemID).serialize()._1 ++
+      NInteger(powerOn.subsystemID).serialize()._1
+  }
+
+  def deserializePowerOn(data: Array[Byte]): PowerOn = {
+    var offset = 0
+    val systemID = NInteger(0)
+    val subsystemID = NInteger(0)
+
+
+    offset = systemID.deserialize(data, offset)
+    offset = subsystemID.deserialize(data, offset)
+
+    PowerOn(systemID.value, subsystemID.value)
+  }
+
 }
 
 
@@ -28,41 +82,51 @@ class ControlManager(meb: ActorRef) extends Actor {
   }
 
 
-  /** todo: NOM Parser 에 있는 객체 모델을 이용하여 NOM 템플릿을 제공한다.
-    * Manager 는 템플릿 객체를 받아와서 자신의 Pub 정보를 기술해야 한다.
-    */
-  def getNOMTemplate(template: String): List[NOM] = {
-    ControlManager.objects.get(template) match {
-      case Some(x) => DummyHead(template) :: x.fields.map{
-        case Field_Proto(name, model, size, fixedLength, indicator) =>
-          (DummyNOM(name, NChar_Dummy('C'))) }.toList   /// todo: 일단 임시로 dummy 하게 만들어 본다. 아래처럼 구현해야 한다.
-      //  NType(name) :: NType(model) * size in loop :: fixedLength(TBD) :: indicator(TBD)
-      case None => println("[Manager] requested object NOM template is not available."); Nil
-    }
-  }
-
 
   /** test code
-    * List[0] 를 header 처럼 사용한다.
+
     */
   def doControl(): Unit = {
-    val control1 = getNOMTemplate("object1")
-    mec ! RegisterMsg(control1(0).getName, managerName)
-    mec ! UpdateMsg(control1)
 
-    val control2 = getNOMTemplate("object2")
-    mec ! RegisterMsg(control2(0).getName, managerName)
-    mec ! UpdateMsg(control2)
+    mec ! RegisterMsg("powerOn", managerName)
+
+    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(1, 101))))
+    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(2, 201))))
+    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(3, 301))))
+    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(4, 401))))
+    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(5, 501))))
+    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(6, 601))))
   }
 
   //  todo: need to implement
   def receive = {
     //  mec -> user
     //  todo: need to NOM serialization
-    case DiscoverMsg(msg) => println("[Control Manager] discover msg received. " + msg)
+    case DiscoverMsg(msg) =>
+      println("[Control Manager] discover msg received. " + msg)
+      msg.name match {
+        case "flight" =>
+          ControlManager.DiscoverMap += (msg.name -> ControlManager.deserializeFlight)
+
+        case "powerOn" =>
+          ControlManager.DiscoverMap += (msg.name -> ControlManager.deserializePowerOn)
+
+        case _ => println("[Control Manager] msg is not register. fail discover!")
+      }
+
     case ReflectMsg(msg) =>
-    case RecvMsg(msg) =>
-    case RemoveMsg(msg) =>
+      println("[Control Manager] Reflect msg received. " + msg)
+      ControlManager.DiscoverMap.get(msg.name) match {
+        case Some(deserializer) =>
+          val obj = deserializer(msg.data)
+          println("[Control Manager] " + obj.toString)
+
+        case None => println("[Control Manager] msg is not discover. fail reflect!")
+      }
+
+    case RecvMsg(msg) => println("[Control Manager] Recv msg received. " + msg)
+
+    case RemoveMsg(msg) => println("[Control Manager] Remove msg received. " + msg)
   }
 }
 

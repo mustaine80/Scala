@@ -1,72 +1,39 @@
 package com.nframework.nom
 
-/*  NOM 에 대한 name 은 알고 있어야 하지 않나? 일단 추상 메소드로 정의한다.  */
-sealed abstract class NOM {
-  def getName: String
-}
+sealed abstract class NOM
 
-case class DummyHead(objName: String) extends NOM {
-  override def getName: String = objName
-}
 
-case class DummyNOM(objName: String, value: NChar_Dummy) extends NOM {
-  override def getName: String = objName
-}
+case class NMessage(name: String, data: Array[Byte]) extends NOM
 
-case class NChar_Dummy(value: Char) extends NOM with NValueType {
-  override def getName: String = toString
 
-  def this() = this(' ')
+/** Manager 간 NOM message 를 보낼 때 아래의 메소드를 사용하여 wrapping 해야 한다.
+  * loadMessage 를 이용하여 객체 정보를 NMessage 로 변환한 후 manager actor 에게 전송한다.
+  * manager actor 에 수신된 메시지는 unloadMessage 를 이용하여 객체 필드 업데이트 후 반환한다.
+  */
+//case object NMessage {
+//  def loadMessage(msgName: String, data: AnyRef): NMessage = {
+//    val bytes = getByteArrayTemplate(msgName)(data)
+//    NMessage(msgName, bytes)  /// dummy Impl
+//  }
+//
+//
+//
+//  private def getByteArrayTemplate(name: String): Function1[AnyRef, Array[Byte]] = ???   /// "field1" : serialize
+//  private def getNOMTemplate(name: String): Function1[Array[Byte], AnyRef] = ???   /// "field1" : NDouble
+//}
 
-  def toInt(): Int = {
-    value.asInstanceOf[Int]
-  }
 
-  def toShort(): Short = {
-    value.asInstanceOf[Short]
-  }
 
-  def toChar(): Char = {
-    value.asInstanceOf[Char]
-  }
 
-  def toByte(): Byte = {
-    value.asInstanceOf[Byte]
-  }
 
-  def toFloat(): Float = {
-    value.asInstanceOf[Float]
-  }
+//case class DummyHead(objName: String) extends NOM(objName) {
+//
+//}
+//
+//case class DummyNOM(objName: String, value: NChar) extends NOM(objName) {
+//
+//}
 
-  def toDouble(): Double = {
-    value.asInstanceOf[Double]
-  }
-
-  override def toString(): String = {
-    value.toString()
-  }
-
-  def setValue(valueType: NValueType) : Boolean = {
-    true
-  }
-
-  def getClone() : NValueType = {
-    NChar_Dummy(0x5)
-  }
-
-  def copyTo(to: NValueType) {
-    to.asInstanceOf[NChar].value = value
-  }
-
-  def serialize(length: Int) : Array[Byte] = {
-    Array(value.asInstanceOf[Byte])
-  }
-
-  def deserialize(data: Array[Byte], offset: Int) : Int = {
-    val length: Int = 1
-    length
-  }
-}
 
 trait NDataType {
   var name = ""

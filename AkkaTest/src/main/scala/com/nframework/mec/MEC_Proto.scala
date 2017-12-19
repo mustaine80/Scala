@@ -32,16 +32,16 @@ abstract class PubSub
 
 /// msg: mec -> meb
 case class RegisterMsg(msgName: String, userName: String) extends PubSub
-case class UpdateMsg(msg: List[NOM]) extends PubSub
-case class SendMsg(msg: List[NOM]) extends PubSub
-case class DeleteMsg(msg: List[NOM]) extends PubSub
+case class UpdateMsg(msg: NMessage) extends PubSub
+case class SendMsg(msg: NMessage) extends PubSub
+case class DeleteMsg(msg: NMessage) extends PubSub
 
 
 /// msg: meb -> mec
-case class DiscoverMsg(msg: List[NOM]) extends PubSub
-case class ReflectMsg(msg: List[NOM]) extends PubSub
-case class RecvMsg(msg: List[NOM]) extends PubSub
-case class RemoveMsg(msg: List[NOM]) extends PubSub
+case class DiscoverMsg(msg: NMessage) extends PubSub
+case class ReflectMsg(msg: NMessage) extends PubSub
+case class RecvMsg(msg: NMessage) extends PubSub
+case class RemoveMsg(msg: NMessage) extends PubSub
 
 
 class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)

@@ -6,17 +6,66 @@ import com.nframework.mec._
 import com.nframework.nom._
 import com.typesafe.config.ConfigFactory
 
+import scala.collection.mutable
+
+
+case class Flight(id: Int, velocity: Double, position: Double)
+case class PowerOn(systemID: Int, subsystemID: Int)
+
 
 object SimulationManager {
   /** todo: NOMParser 의 parsing 정보는 1회만 생성하고 이를 가져다 쓰는 방식이어야 하는데, 현재는 필요시 생성하여 쓰는 방식이다.
     * immutable 하게 생성하여 get 하는 방식으로 보완해야 한다.
    */
-  NOMParser.parse("src/main/Resources/test.json")
+  Proto_NOMParser.parse("src/main/Resources/test.json")
   val objects = Proto_NOMParser.objectTypes
   val interactions = Proto_NOMParser.interactionTypes
+
+  var DiscoverMap = mutable.Map.empty[String, Function1[Array[Byte], AnyRef]]
+
+
+  //  Flight
+  def serializeFlight(flight: Flight): Array[Byte] = {
+    NInteger(flight.id).serialize()._1 ++
+      NDouble(flight.velocity).serialize()._1 ++
+      NDouble(flight.position).serialize()._1
+  }
+
+  def deserializeFlight(data: Array[Byte]): Flight = {
+    var offset = 0
+    val id = NInteger(0)
+    val velocity = NDouble(0.0)
+    val position = NDouble(0.0)
+
+    offset = id.deserialize(data, offset)
+    offset += velocity.deserialize(data, offset)
+    offset += position.deserialize(data, offset)
+
+    Flight(id.value, velocity.value, position.value)
+  }
+
+
+  //  PowerOn
+  def serializePowerOn(powerOn: PowerOn): Array[Byte] = {
+    NInteger(powerOn.systemID).serialize()._1 ++
+      NInteger(powerOn.subsystemID).serialize()._1
+  }
+
+  def deserializePowerOn(data: Array[Byte]): PowerOn = {
+    var offset = 0
+    val systemID = NInteger(0)
+    val subsystemID = NInteger(0)
+
+    offset = systemID.deserialize(data, offset)
+    offset += subsystemID.deserialize(data, offset)
+
+    PowerOn(systemID.value, subsystemID.value)
+  }
 }
 
+
 class SimulationManager(meb: ActorRef) extends Actor {
+
   val managerName = "Simulation Manager"
   val mec = context.actorOf(Props(new MEC_Proto("Simulation Manager", context.self, meb)), "MEC_SimulationManager")
 
@@ -29,44 +78,53 @@ class SimulationManager(meb: ActorRef) extends Actor {
   }
 
 
-  /** todo: NOM Parser 에 있는 객체 모델을 이용하여 NOM 템플릿을 제공한다.
-    * Manager 는 템플릿 객체를 받아와서 자신의 Pub 정보를 기술해야 한다.
-   */
-  def getNOMTemplate(template: String): List[NOM] = {
-    SimulationManager.objects.get(template) match {
-      case Some(x) => DummyHead(template) :: x.fields.map{
-        case Field_Proto(name, model, size, fixedLength, indicator) =>
-          (DummyNOM(name, NChar_Dummy('S'))) }.toList   /// todo: 일단 임시로 dummy 하게 만들어 본다. 아래처럼 구현해야 한다.
-          //  NType(name) :: NType(model) * size in loop :: fixedLength(TBD) :: indicator(TBD)
-      case None => println("[Manager] requested object NOM template is not available."); Nil
-      }
-  }
-
-
   /** test code
 
    */
   def doFlight(): Unit = {
-    /** getNOMTemplate 를 통해 받아온 템플릿 객체에 flight 정보를 입력해야 한다. 테스트 코드이기 때문에 이대로 유지한다.
-     */
-    val flight1 = getNOMTemplate("object1")
-    mec ! RegisterMsg(flight1(0).getName, managerName)
-    mec ! UpdateMsg(flight1)
 
-    val flight2 = getNOMTemplate("object2")
-    mec ! RegisterMsg(flight2(0).getName, managerName)
-    mec ! UpdateMsg(flight2)
+    mec ! RegisterMsg("flight", managerName)
+
+    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(1, 100.5, 10.0))))
+    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(2, 300.0, 100.0))))
+    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(1, 130.5, 20.0))))
+    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(2, 350.0, 110.0))))
+    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(1, 160.5, 30.0))))
+    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(2, 400.0, 120.0))))
   }
+
 
   //  todo: need to implement
   def receive = {
     //  mec -> user
-    case DiscoverMsg(msg) => println("[Simulation Manager] discover msg received. " + msg)
-    case ReflectMsg(msg) => println("[Simulation Manager] Reflect msg received. " + msg)
+    case DiscoverMsg(msg) =>
+      println("[Simulation Manager] discover msg received. " + msg)
+      msg.name match {
+        case "flight" =>
+          SimulationManager.DiscoverMap += (msg.name -> SimulationManager.deserializeFlight)
+
+        case "powerOn" =>
+          SimulationManager.DiscoverMap += (msg.name -> SimulationManager.deserializePowerOn)
+
+        case _ => println("[Simulation Manager] msg is not register. fail discover!")
+      }
+
+    case ReflectMsg(msg) =>
+      println("[Simulation Manager] Reflect msg received. " + msg)
+      SimulationManager.DiscoverMap.get(msg.name) match {
+        case Some(deserializer) =>
+          val obj = deserializer(msg.data)
+          println("[Simulation Manager] " + obj.toString)
+
+        case None => println("[Simulation Manager] msg is not discover. fail reflect!")
+      }
+
     case RecvMsg(msg) => println("[Simulation Manager] Recv msg received. " + msg)
+
     case RemoveMsg(msg) => println("[Simulation Manager] Remove msg received. " + msg)
   }
 }
+
 
 object Integrator_Test {
   def main(args: Array[String]): Unit = {

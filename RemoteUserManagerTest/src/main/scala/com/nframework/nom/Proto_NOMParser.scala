@@ -140,13 +140,13 @@ object Proto_NOMParser extends Proto_Parser {
 
 
   def extractTypeModel(hint: String): TypeModel = {
-    if (basicTypes.contains(hint))
-      basicTypes(hint)
-    else if (enumTypes.contains(hint))
-      enumTypes(hint)
-    else
-      complexTypes(hint)
-  }
+        if (basicTypes.contains(hint))
+          basicTypes(hint)
+        else if (enumTypes.contains(hint))
+          enumTypes(hint)
+        else
+          complexTypes(hint)
+   }
 }
 
 

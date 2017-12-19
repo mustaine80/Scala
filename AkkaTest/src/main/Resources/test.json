@@ -62,34 +62,40 @@
   },
 
   "Objects" : {
-    "object1" : {
-      "field1" : {
-        "type" : "double",
+    "flight" : {
+      "id" : {
+        "type" : "int",
         "size" : "1",
         "fixedLength" : "0",
         "indicator" : "0"
       },
-      "field2" : {
-        "type" : "Complex1",
+      "velocity" : {
+        "type" : "double",
         "size" : "1",
-        "fixedLength" : "1",
+        "fixedLength" : "0",
+        "indicator" : "1"
+      },
+      "position" : {
+        "type" : "double",
+        "size" : "1",
+        "fixedLength" : "0",
         "indicator" : "2"
       },
       "sharing" : "PublishSubscribe",
       "alignment" : "none"
     },
-    "object2" : {
-      "field11" : {
-        "type" : "double",
+    "powerOn" : {
+      "systemID" : {
+        "type" : "int",
         "size" : "1",
         "fixedLength" : "0",
         "indicator" : "0"
       },
-      "field22" : {
-        "type" : "Complex1",
+      "subsystemID" : {
+        "type" : "int",
         "size" : "1",
-        "fixedLength" : "0",
-        "indicator" : "0"
+        "fixedLength" : "48",
+        "indicator" : "1"
       },
       "sharing" : "PublishSubscribe",
       "alignment" : "none"
