@@ -6,7 +6,7 @@ abstract class NException(s: String) extends Throwable {
   
 }
 
-class NInvaliedFieldException(s: String) extends NException(s) {
+class NInvalidFieldException(s: String) extends NException(s) {
   def tostring() {
     val builder = new StringBuffer
     builder.append("[NOM-InvalidFieldException occurred]: ")

@@ -18,7 +18,6 @@ object EDataType extends Enumeration {
   val ENUM = Value
 }
 
-
 trait NValueType {
   var path = ""
   var nom: NOM = null

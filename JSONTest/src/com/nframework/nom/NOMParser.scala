@@ -1,4 +1,4 @@
-// package com.nframework.nom
+package com.nframework.nom
 
 import scala.util.parsing.json._
 import java.io._
@@ -44,6 +44,29 @@ object NOMParser extends Parser {
   var objectMap: Map[String, Object] = null
   var interactionMap: Map[String, Interaction] = null
   
+  val primitiveTypeMap = collection.mutable.HashMap.empty[String, Int]
+  val msgMap = collection.mutable.HashMap.empty[String, NMessage]
+  val msgIDMap = collection.mutable.HashMap.empty[Int, NMessage]
+  val msgList = collection.mutable.ListBuffer.empty[NMessage]
+  
+  private def clearMessageList() {
+    basicTypeList.clear()
+    enumTypeList.clear()
+    complexTypeList.clear()
+    objectList.clear()
+    interactionList.clear()
+    
+    basicTypeMap = null
+    enumTypeMap = null
+    complexTypeMap = null
+    objectMap = null
+    interactionMap = null
+    
+    primitiveTypeMap.clear()
+    msgMap.clear()
+    msgIDMap.clear()
+  }
+  
   override def parse() : Boolean = {
     val fileutf8 = new BufferedReader(new InputStreamReader(new FileInputStream(new File(path)), "UTF-8") )
     
@@ -57,7 +80,19 @@ object NOMParser extends Parser {
       line = fileutf8.readLine
     }
     
-    //jsonstrutf8 = jsonstrutf8.drop(1)  // UTF-8로 인코딩된 파일은 string 앞에 -1이 붙으므로 첫 글자를 잘라야 함
+    clearMessageList()
+    
+    primitiveTypeMap += ("Bool" -> EDataType.BOOL.asInstanceOf[Int])
+    primitiveTypeMap += ("Byte" -> EDataType.BYTE.asInstanceOf[Int])
+    primitiveTypeMap += ("Char" -> EDataType.CHAR.asInstanceOf[Int])
+    primitiveTypeMap += ("Short" -> EDataType.SHORT.asInstanceOf[Int])
+    primitiveTypeMap += ("Integer" -> EDataType.INTEGER.asInstanceOf[Int])
+    primitiveTypeMap += ("Float" -> EDataType.FLOAT.asInstanceOf[Int])
+    primitiveTypeMap += ("Double" -> EDataType.DOUBLE.asInstanceOf[Int])
+    primitiveTypeMap += ("String" -> EDataType.STRING.asInstanceOf[Int])
+    primitiveTypeMap += ("Variable" -> EDataType.VARIABLE.asInstanceOf[Int])
+    primitiveTypeMap += ("FixedString" -> EDataType.FIXED_STRING.asInstanceOf[Int])
+    primitiveTypeMap += ("FixedDatum" -> EDataType.FIXED_DATUM.asInstanceOf[Int])
 
 
     val json = JSON.parseFull(jsonstrutf8)
@@ -161,9 +196,81 @@ object NOMParser extends Parser {
     interactionList.foreach( (e) => println(e.parameterList) )
     interactionMap = interactionList.map( (e) => (e.name, e) ).toMap
   }
+  
+  def createPrimitiveTypeObject(basic: BasicType) : NPrimitiveType = {
+    var pt: NPrimitiveType = null
+    var value: NValueType = null
+    
+    basic.dataType match {
+      case "Bool" => value = new NBool
+      case "Byte" => value = new NByte
+      case "Char" => {
+        value = new NChar
+        if(basic.length != 0)
+          value.typeLength = basic.length
+      }
+      case "Short" => value = new NShort
+      case "Integer" => {
+        value = new NInteger
+        value.length = basic.length
+        if(basic.length != 0)
+          value.typeLength = basic.length
+      }
+      case "Float" => value = new NFloat
+      case "Double" => value = new NDouble
+      case "String" => {
+        //value = new NString
+      }
+      case "Variable" =>
+      case "FixedString" =>
+      case "FixedDatum" =>      
+    }
+    
+    value.bigEndian = basic.endian match {
+      case "big" => true
+      case "little" => false
+      case _ => false
+    }
+    value.signed = true
+    
+    pt
+  }
+  
+  def createEnumTypeObject(enum: EnumType) : NEnumType = {
+    null
+  }
+  
+  def createComplexTypeObject(complex: ComplexType) : NComplexType = {
+    null
+  }
+  
+  def getMessageList() : List[NMessage] = msgList.toList
+  
+  def getObjectList() : List[NMessage] = msgList.filter(_.nomType == ENOMType.OBJECT).toList
+  
+  def getInteractionList() : List[NMessage] = msgList.filter(_.nomType == ENOMType.INTERACTION).toList
+  
+  def getMessageMap() : Map[String, NMessage] = msgMap.toMap
+  
+  def getMessageIDMap() : Map[Int, NMessage] = msgIDMap.toMap
+  
+  def getPrimitiveTypeMap() : Map[String, Int] = primitiveTypeMap.toMap
+  
+  def getBasicTypeMap() : Map[String, BasicType] = basicTypeMap.toMap
+  
+  def getComplexTypeMap() : Map[String, ComplexType] = complexTypeMap.toMap
+  
+  def getEnumTypeMap() : Map[String, EnumType] = enumTypeMap.toMap
+  
+  def getMessageObject(name: String) = msgMap.getOrElse(name, null)
+  
+  def getMessageObject(id: Int) = msgIDMap.getOrElse(id, null)
+  
+  
 }
 
-object JSONTest extends App {
+
+object JSONTest2 extends App {
   
   
   println("JSON Test!")
@@ -179,7 +286,8 @@ object JSONTest extends App {
   // println( BigInt(1).toByteArray.mkString(", ") )
   // println( BigInt(0x12345678).toByteArray.length )  
   
-  val bb = java.nio.ByteBuffer.allocate(4)
+  // java.nio.ByteBuffer를 사용한 encoding & decoding 테스트
+  val bb = java.nio.ByteBuffer.allocate(8)
     
   bb.putInt(0x12345678)
   
@@ -191,4 +299,21 @@ object JSONTest extends App {
   
   println(java.nio.ByteBuffer.wrap(buffer).getInt)
   println(java.nio.ByteBuffer.wrap(rev).getInt)
+  
+  val d = new NDouble(1.234)
+  val d2 = new NDouble(0.0)
+  
+  d2.deserialize(d.serialize()._1, 0)
+  
+  println(d2)
+  
+  // mutable hashmap에 대한 clone 테스트
+//  val m1 = collection.mutable.HashMap( (1 -> "one"), (2->"two"), (3->"three"), (10->"ten") )
+//  val m2 = m1.clone()
+  
+//  m2.foreach(println)
+  
+  // 이중 list에 대한 모든 값의 reduce 테스트
+  //val ll = List( List(1, 2, 3, 4), List(5, 6), List(7), List(8, 9, 10) )
+  //println( ll.map( (list: List[Int])=> { list.reduce(_ + _) }  ).reduce(_ + _) )  
 }

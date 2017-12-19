@@ -1,7 +1,5 @@
 package com.nframework.nom
 
-abstract class NOM
-
 trait NDataType {
   var name = ""
   var path = ""
@@ -25,15 +23,69 @@ trait NDataType {
   def resize(n: Int)
   
   def setNOM(nom: NOM)
-  def getLength(alignment: Boolean, nextTypeLength: Short, offset: Int)
+  def getLength(alignment: Boolean, nextTypeLength: Short, offset: Int) : Int
   def setAlignmentLength(length: Short)
   def getTypeLength() : Short
-  def getMaxTypeLEngth() : Short
+  def getMaxTypeLength() : Short
   def copyTo(to: NDataType) : Boolean
   def setOMT(b: Boolean)
   
-  def serialize(data: Array[Byte], length: Int, offset: Int, alignment: Boolean, nextTypeLength: Short)
-  def deserialize(data: Array[Byte], length: Int, offset: Boolean, nextTypeLength: Short) : Boolean
+  def serialize(data: Array[Byte], length: Int, offset: Int, alignment: Boolean, nextTypeLength: Short) : (Int, Int)
+  def deserialize(data: Array[Byte], length: Int, offset: Int, alignment: Boolean, nextTypeLength: Short) : (Boolean, Int, Int)
+  
+  def serializeIndicator(data: Array[Byte], length: Int, offset: Int, alignment: Boolean) : (Int, Int) = {
+    var len: Int = length;
+    var off: Int = offset;
+    
+    val maxTypeLength = getMaxTypeLength()
+    
+    if(indicator != 0) {
+      val bb = java.nio.ByteBuffer.allocate(indicator.abs)    
+      bb.putInt(indicator)
+      
+      var buffer = bb.array()
+      if(indicator > 0)
+        buffer = NValueType.reverseBytes(buffer)  // ByteBuffer의 결과는 big endian이므로 little인 경우에는 reverseByte
+      
+      buffer.copyToArray(data, offset, indicator.abs)          
+    
+      len += indicator.abs
+      off += indicator.abs
+    }
+    
+    // alignment는 나중에 추가한다.
+    
+    (len, off)
+  }
+  
+  def deserializeIndicator(data: Array[Byte], length: Int, offset: Int, alignment: Boolean) : (Int, Int, Int) = {
+    var len = length
+    var field = 0
+    var off = offset
+    
+    val maxTypeLength = getMaxTypeLength()
+    
+    if(indicator != 0) {
+      val arr = new Array[Byte](indicator.abs) 
+      
+      data.copyToArray(arr, offset, indicator.abs)
+      
+      field = if(indicator > 0) {
+        java.nio.ByteBuffer.wrap(arr.reverse).getInt
+      } else {
+        java.nio.ByteBuffer.wrap(arr).getInt
+      }
+      
+      len += indicator.abs
+      off += indicator.abs
+    } else {
+      field = 0
+    }
+    
+    // alignment는 나중에 추가한다.
+    
+    (len, off, field)
+  }
 }
 
 object NDataType {
@@ -47,15 +99,5 @@ object NDataType {
   
   def reverseBytes(input: Array[Byte], offset: Int, size: Int) : Array[Byte] = {
     input.dropRight(input.length - offset) ++ input.drop(offset).dropRight(input.length - offset - size).reverse ++ input.drop(offset + size)
-  }
-  
-  def serializeIndicator(data: Array[Byte], length: Int, offset: Int, alignment: Boolean) {
-    
-  }
-  
-  def deserializeIndicator(data: Array[Byte], length: Int, fieldSize: Int, offset: Int, alignment: Boolean) = {
-    
-    
-    false
-  }
+  }  
 }

@@ -105,7 +105,7 @@ class NPrimitiveType extends NDataType {
     this.nom = nom
   }
   
-  def getLength(alignment: Boolean, nextTypeLength: Short, offset: Int) {
+  def getLength(alignment: Boolean, nextTypeLength: Short, offset: Int) : Int = {
     var length = 0
     var value: NValueType = null
     var alignmentLength: Short = 0
@@ -115,6 +115,8 @@ class NPrimitiveType extends NDataType {
     length += valueList.map(_.length).reduce(_ + _)
     
 	// 구조체 멤버 맞춤 기능은 나중에...
+    
+    length
   }
   
   def setAlignmentLength(length: Short) {
@@ -122,37 +124,89 @@ class NPrimitiveType extends NDataType {
   }
   
   def getTypeLength() : Short = {
-    0
+    valueList(0).length.asInstanceOf[Short]
   }
   
-  def getMaxTypeLEngth() : Short = {
-    0
+  def getMaxTypeLength() : Short = {
+    if(valueList(0).variable) {
+      valueList.map(_.length).reduceLeft(_ max _).asInstanceOf[Short]
+    } else {
+      getTypeLength()
+    }
   }
   
   def copyTo(to: NDataType) : Boolean = {
-    false
+    val pt = to.asInstanceOf[NPrimitiveType]
+    
+    if(this.size != pt.size)
+      pt.resize(this.size)
+      
+    copyValue(pt)
+    
+    true
   }
   
   def setOMT(b: Boolean) {
     this.omt = b
+  }
     
-    if(b) {
-      
+  def serialize(data: Array[Byte], length: Int, offset: Int, alignment: Boolean, nextTypeLength: Short) : (Int, Int) = {
+    val indicatorInfo = serializeIndicator(data, length, offset, alignment)
+    var len = length + indicatorInfo._1
+    var off = length + indicatorInfo._2
+    
+    valueList.foreach( (v: NValueType) => { 
+        val info = v.serialize()
+        info._1.copyToArray(data, off)
+        off += info._2
+        len += info._2
+      }
+    )
+    
+    // alignment는 나중에 처리한다.
+    
+    (len, off)
+  }
+  
+  def deserialize(data: Array[Byte], length: Int, offset: Int, alignment: Boolean, nextTypeLength: Short) : (Boolean, Int, Int) = {
+    val indicatorInfo = deserializeIndicator(data, length, offset, alignment)
+    val fieldSize = indicatorInfo._3
+
+    var len = length
+    var off = offset
+    
+    if(fieldSize != 0) {
+      resize(fieldSize)
     }
-  }
-  
-  
-  def serialize(data: Array[Byte], length: Int, offset: Int, alignment: Boolean, nextTypeLength: Short) {
     
-  }
-  
-  def deserialize(data: Array[Byte], length: Int, offset: Boolean, nextTypeLength: Short) : Boolean = {
-    false
+    valueList.foreach( (v: NValueType) => {
+      val valueLength = v.deserialize(data, offset)
+      
+      off += valueLength
+      len += valueLength
+    })
+    
+    // alignment는 나중에 처리한다.
+    
+    (true, len, off)
   }
   
   // normal methods
   def setValueObject(obj: NValueType) {
+    if(size != 0) {
+      valueList(0) = obj
+    } else {
+      valueList += obj
+      size = 1
+    }
     
+    valueList(0).path = path
+    
+    for( i <- (1 to size - 1) ) valueList(i) = obj.getClone()
+  }
+  
+  def copyValue(pt: NPrimitiveType) {
+    for( i <- (0 to valueList.size - 1) ) valueList(i).copyTo(pt.valueList(i))
   }
   
   
