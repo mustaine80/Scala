@@ -10,7 +10,7 @@ trait Parser {
   var path = ""
 }
 
-case class BasicType(name: String, length: Int, endian: String, dataType: String)
+case class BasicType(name: String, length: Int, endian: String, typeName: String, dataType: EDataType.Value)
 case class Enumerator(name: String, value: Int)
 case class EnumType(name: String, length: Int) {  
   val enumList: collection.mutable.ListBuffer[Enumerator] = new collection.mutable.ListBuffer
@@ -68,18 +68,6 @@ object NOMParser extends Parser {
   }
   
   override def parse() : Boolean = {
-    val fileutf8 = new BufferedReader(new InputStreamReader(new FileInputStream(new File(path)), "UTF-8") )
-    
-    var line = ""
-    var jsonstrutf8 = ""
-    
-    line = fileutf8.readLine
-    
-    while(line != null) {
-      jsonstrutf8 += line
-      line = fileutf8.readLine
-    }
-    
     clearMessageList()
     
     primitiveTypeMap += ("Bool" -> EDataType.BOOL)
@@ -93,8 +81,19 @@ object NOMParser extends Parser {
     primitiveTypeMap += ("Variable" -> EDataType.VARIABLE)
     primitiveTypeMap += ("FixedString" -> EDataType.FIXED_STRING)
     primitiveTypeMap += ("FixedDatum" -> EDataType.FIXED_DATUM)
-
-
+    
+    val fileutf8 = new BufferedReader(new InputStreamReader(new FileInputStream(new File(path)), "UTF-8") )
+    
+    var line = ""
+    var jsonstrutf8 = ""
+    
+    line = fileutf8.readLine
+    
+    while(line != null) {
+      jsonstrutf8 += line
+      line = fileutf8.readLine
+    }
+    
     val json = JSON.parseFull(jsonstrutf8)
     
     val result : Boolean = if(json != None)
@@ -143,8 +142,8 @@ object NOMParser extends Parser {
   }
   
   def composeBasicTypeList(m: Map[String, Map[String, String]]) {
-    m.map( ( e: (String, Map[String, String]) ) => BasicType(e._1, Integer.parseInt(e._2("length")), e._2("endian"), e._2("type")) ).foreach( basicTypeList += _ ) 
-    
+    m.map( ( e: (String, Map[String, String]) ) => BasicType(e._1, Integer.parseInt(e._2("length")), e._2("endian"), e._2("type"), primitiveTypeMap(e._2("type")) ) ).foreach( basicTypeList += _ ) 
+            
     println(basicTypeList)
     basicTypeMap = basicTypeList.map( (e) => (e.name, e) ).toMap
   }
@@ -202,28 +201,28 @@ object NOMParser extends Parser {
     var value: NValueType = null
     
     basic.dataType match {
-      case "Bool" => value = new NBool
-      case "Byte" => value = new NByte
-      case "Char" => {
+      case EDataType.BOOL => value = new NBool
+      case EDataType.BYTE => value = new NByte
+      case EDataType.CHAR => {
         value = new NChar
         if(basic.length != 0)
           value.typeLength = basic.length
       }
-      case "Short" => value = new NShort
-      case "Integer" => {
+      case EDataType.SHORT => value = new NShort
+      case EDataType.INTEGER => {
         value = new NInteger
         value.length = basic.length
         if(basic.length != 0)
           value.typeLength = basic.length
       }
-      case "Float" => value = new NFloat
-      case "Double" => value = new NDouble
-      case "String" => {
+      case EDataType.FLOAT => value = new NFloat
+      case EDataType.DOUBLE => value = new NDouble
+      case EDataType.STRING => {
         //value = new NString
       }
-      case "Variable" =>
-      case "FixedString" =>
-      case "FixedDatum" =>      
+      case EDataType.VARIABLE =>
+      case EDataType.FIXED_STRING =>
+      case EDataType.FIXED_DATUM =>      
     }
     
     value.bigEndian = basic.endian match {
@@ -316,4 +315,13 @@ object JSONTest2 extends App {
   // 이중 list에 대한 모든 값의 reduce 테스트
   //val ll = List( List(1, 2, 3, 4), List(5, 6), List(7), List(8, 9, 10) )
   //println( ll.map( (list: List[Int])=> { list.reduce(_ + _) }  ).reduce(_ + _) )  
+  
+  def asUnsigned(v: Byte) = if(v < 0) 256 + v else v
+  val s = "안녕1"
+  val arr = s.getBytes("UTF-16LE").map(asUnsigned(_))
+  
+  val s2 = new String(s.getBytes("UTF-16LE"), "UTF-16LE")
+  println(s2)
+  
+  println(arr.mkString(", "))
 }
