@@ -116,21 +116,24 @@ object NOMParser extends Parser {
       val interactionMap = root("Interactions").asInstanceOf[Map[String, Map[String, Map[String, String]]]]
       val interactionList = interactionMap.toList
     
-      /*
-      println(basicTypeList)
-      println(enumTypeList)
-      println(complexTypeList)
-      println(objectList)
-      println(interactionList)
-      */
+      try {
+        composeBasicTypeList(basicTypeMap)
+        composeEnumTypeList(enumTypeMap)
+        composeComplexTypeList(complexTypeMap)
+        composeObjectList(objectMap)
+        composeInteractionList(interactionMap)
+            
+        checkBasicTypeList()
+        checkEnumTypeList()
+        checkComplexTypeList()
+        checkObjectList()
+        checkInteractionList()
+      } catch {
+        case e: NNOMFileParsingFailedException => println(e.toString())
+        success = false 
+      }
       
-      composeBasicTypeList(basicTypeMap)
-      composeEnumTypeList(enumTypeMap)
-      composeComplexTypeList(complexTypeMap)
-      composeObjectList(objectMap)
-      composeInteractionList(interactionMap)
-      
-      true
+      success
     } else { false }
     
     result
@@ -142,8 +145,19 @@ object NOMParser extends Parser {
   }
   
   def composeBasicTypeList(m: Map[String, Map[String, String]]) {
-    m.map( ( e: (String, Map[String, String]) ) => BasicType(e._1, Integer.parseInt(e._2("length")), e._2("endian"), e._2("type"), primitiveTypeMap(e._2("type")) ) ).foreach( basicTypeList += _ ) 
-            
+    m.map( ( e: (String, Map[String, String]) ) => BasicType(e._1, Integer.parseInt(e._2("length")), e._2("endian"), e._2("type"), primitiveTypeMap(e._2("type")) ) ).foreach( basicTypeList += _ )
+    
+    // 타입 이름 중복 체크
+    basicTypeList.groupBy(_.name).collect { case (x, ys) if ys.lengthCompare(1) > 0 => {
+          val builder = new StringBuilder
+          builder.append("NOM parse failed: duplicated basic type (")
+          builder.append(x)
+          builder.append(")")
+          
+          throw new NNOMFileParsingFailedException(builder.toString())
+        }
+      }
+    
     println(basicTypeList)
     basicTypeMap = basicTypeList.map( (e) => (e.name, e) ).toMap
   }
@@ -196,6 +210,83 @@ object NOMParser extends Parser {
     interactionMap = interactionList.map( (e) => (e.name, e) ).toMap
   }
   
+  private def checkBasicTypeList() {
+    basicTypeList.foreach( (bt: BasicType) => {
+      primitiveTypeMap.get(bt.typeName) match {
+        case Some(pt) =>
+        case None => {
+          val builder = new StringBuilder
+          builder.append("NOM parse failed: ")
+          builder.append(bt.typeName)
+          builder.append(" is not a correct type name.");
+          throw new NNOMFileParsingFailedException(builder.toString())
+        }
+      }
+    })
+  }
+  
+  private def checkEnumTypeList() {
+    enumTypeList.foreach( (et: EnumType) => {
+      basicTypeMap.get(et.name) match {
+        case Some(bt) => {
+          val builder = new StringBuilder
+          builder.append("NOM parse failed : Enum type ")
+          builder.append(et.name)
+          builder.append(" is duplicated with another basic data type.");
+          throw new NNOMFileParsingFailedException(builder.toString())
+        }
+        case None => {
+          complexTypeMap.get(et.name) match {
+            case Some(ct) => {
+              val builder = new StringBuilder
+              builder.append("NOM parse failed : Enum type ")
+              builder.append(et.name)
+              builder.append(" is duplicated with another complex data type.");
+              throw new NNOMFileParsingFailedException(builder.toString())
+            }
+            case None =>
+          }
+        } // case None
+      }
+      
+    }) // foreach
+  }
+  
+  private def checkComplexTypeList() {
+    complexTypeList.foreach( (ct: ComplexType) => {
+      basicTypeMap.get(ct.name) match {
+        case Some(bt) => {          
+          val builder = new StringBuilder
+          builder.append("NOM parse failed : Complex type ")
+          builder.append(ct.name)
+          builder.append(" is duplicated with another basic data type.");
+          throw new NNOMFileParsingFailedException(builder.toString())
+        }
+        case None => {
+          enumTypeMap.get(ct.name) match {
+            case Some(et) => {
+              val builder = new StringBuilder
+              builder.append("NOM parse failed : Complex type ")
+              builder.append(ct.name)
+              builder.append(" is duplicated with another enum data type.");
+              throw new NNOMFileParsingFailedException(builder.toString())
+            }
+            case None =>
+          }
+        } // case None
+      }
+      
+    }) // foreach
+  }
+  
+  private def checkObjectList() {
+    
+  }
+  
+  private def checkInteractionList() {
+    
+  }
+  
   def createPrimitiveTypeObject(basic: BasicType) : NPrimitiveType = {
     var pt: NPrimitiveType = null
     var value: NValueType = null
@@ -231,6 +322,8 @@ object NOMParser extends Parser {
       case _ => false
     }
     value.signed = true
+    
+    pt.setValueObject(value)
     
     pt
   }

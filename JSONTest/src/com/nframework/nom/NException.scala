@@ -2,12 +2,12 @@ package com.nframework.nom
 
 
 abstract class NException(s: String) extends Throwable {
-  def tostring()
+  def toString(): String
   
 }
 
 class NInvalidFieldException(s: String) extends NException(s) {
-  def tostring() {
+  override def toString() = {
     val builder = new StringBuffer
     builder.append("[NOM-InvalidFieldException occurred]: ")
     builder.append(s)
@@ -17,7 +17,7 @@ class NInvalidFieldException(s: String) extends NException(s) {
 }
 
 class NArrayIndexOutOfBoundsException(s: String) extends NException(s) {
-  def tostring() {
+  override def toString() = {
     val builder = new StringBuffer
     builder.append("[NOM-NArrayIndexOutOfBoundsException Occurred]: ")
     builder.append(s)
@@ -27,7 +27,7 @@ class NArrayIndexOutOfBoundsException(s: String) extends NException(s) {
 }
 
 class NTypeMismatchException(s: String) extends NException(s) {
-  def tostring() {
+  override def toString() = {
     val builder = new StringBuffer
     builder.append("[NOM-NTypeMismatchException Occurred]: ")
     builder.append(s)
@@ -37,7 +37,7 @@ class NTypeMismatchException(s: String) extends NException(s) {
 }
 
 class NNOMFileParsingFailedException(s: String) extends NException(s) {
-  def tostring() {
+  override def toString() = {
     val builder = new StringBuffer
     builder.append("[NOM-NNOMFileParsingFailedException Occurred]: ")
     builder.append(s)

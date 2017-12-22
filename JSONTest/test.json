@@ -113,8 +113,8 @@
 		"sharing" : "PublishSubscribe",
 		"alignment" : "none"
 		},
-		"interaction2" : {
-			"field11" : {
+		"인터렉션2" : {
+			"필드1" : {
 			"type" : "double",
 			"size" : "1",
 			"fixedLength" : "0",
