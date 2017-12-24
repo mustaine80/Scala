@@ -2,37 +2,13 @@ package com.nframework.nom
 
 sealed abstract class NOM
 
-
-case class NMessage(name: String, data: Array[Byte]) extends NOM
-
-
-/** Manager 간 NOM message 를 보낼 때 아래의 메소드를 사용하여 wrapping 해야 한다.
-  * loadMessage 를 이용하여 객체 정보를 NMessage 로 변환한 후 manager actor 에게 전송한다.
-  * manager actor 에 수신된 메시지는 unloadMessage 를 이용하여 객체 필드 업데이트 후 반환한다.
+/**
+  *
+  * @param name Pub/Sub 통신 간 사용할 메시지 이름
+  * @param objID  Object type 에 대해 개별 객체 구분을 위해 사용
+  * @param data 직렬화 데이터
   */
-//case object NMessage {
-//  def loadMessage(msgName: String, data: AnyRef): NMessage = {
-//    val bytes = getByteArrayTemplate(msgName)(data)
-//    NMessage(msgName, bytes)  /// dummy Impl
-//  }
-//
-//
-//
-//  private def getByteArrayTemplate(name: String): Function1[AnyRef, Array[Byte]] = ???   /// "field1" : serialize
-//  private def getNOMTemplate(name: String): Function1[Array[Byte], AnyRef] = ???   /// "field1" : NDouble
-//}
-
-
-
-
-
-//case class DummyHead(objName: String) extends NOM(objName) {
-//
-//}
-//
-//case class DummyNOM(objName: String, value: NChar) extends NOM(objName) {
-//
-//}
+case class NMessage(name: String, objID: Int, data: Array[Byte]) extends NOM
 
 
 trait NDataType {

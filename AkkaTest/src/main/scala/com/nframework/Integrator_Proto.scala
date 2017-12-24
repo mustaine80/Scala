@@ -1,28 +1,31 @@
 package com.nframework
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props, Timers}
+import com.nframework.SimulationManager.{TickKey, Update}
 import com.nframework.meb.MEB_Proto
+import com.nframework.mec.MEC_Proto.PubSubInfoForwarding
 import com.nframework.mec._
 import com.nframework.nom._
 import com.typesafe.config.ConfigFactory
-
-import scala.collection.mutable
+import scala.concurrent.duration._
 
 
 case class Flight(id: Int, velocity: Double, position: Double)
 case class PowerOn(systemID: Int, subsystemID: Int)
+case class StartResume(isStart: Int)
 
 
 object SimulationManager {
-  /** todo: NOMParser 의 parsing 정보는 1회만 생성하고 이를 가져다 쓰는 방식이어야 하는데, 현재는 필요시 생성하여 쓰는 방식이다.
-    * immutable 하게 생성하여 get 하는 방식으로 보완해야 한다.
-   */
-  Proto_NOMParser.parse("src/main/Resources/test.json")
-  val objects = Proto_NOMParser.objectTypes
-  val interactions = Proto_NOMParser.interactionTypes
+  private object TickKey
+  private object Update
 
-  var DiscoverMap = mutable.Map.empty[String, Function1[Array[Byte], AnyRef]]
+  var DiscoverMap = Map.empty[String, Map[Int, AnyRef]]
 
+
+  /** 발행(pub)할 토픽 정보를 직렬화 하는 함수를 사용자가 구현한다.
+    * 구독(sub)할 토픽 정보를 역직렬화 하는 함수를 사용자가 구현한다.
+    * todo: NOM schema 를 이용하여 자동화할 필요가 있다.
+    */
 
   //  Flight
   def serializeFlight(flight: Flight): Array[Byte] = {
@@ -61,20 +64,33 @@ object SimulationManager {
 
     PowerOn(systemID.value, subsystemID.value)
   }
+
+
+  //  StartResume
+  def serializeStartResume(startResume: StartResume): Array[Byte] = {
+    NInteger(startResume.isStart).serialize()._1
+  }
+
+  def deserializeStartResume(data: Array[Byte]): StartResume = {
+    var offset = 0
+    val startResume = NInteger(0)
+
+    startResume.deserialize(data, offset)
+
+    StartResume(startResume.value)
+  }
 }
 
 
-class SimulationManager(meb: ActorRef) extends Actor {
-
+class SimulationManager(meb: ActorRef) extends Actor with Timers {
   val managerName = "Simulation Manager"
   val mec = context.actorOf(Props(new MEC_Proto("Simulation Manager", context.self, meb)), "MEC_SimulationManager")
 
-  init()
+  //  test 용 임시 변수
+  var updateValue: Int = 0
 
   def init(): Unit = {
     println("simulation manager initialize ...")
-    Thread.sleep(5000)    //  todo: 현재 MEB 에 msg sharing 정보 전파 이후에 RegisterMsg 요청이 가능함. 보완 필요
-    doFlight()
   }
 
 
@@ -83,16 +99,27 @@ class SimulationManager(meb: ActorRef) extends Actor {
    */
   def doFlight(): Unit = {
 
-    mec ! RegisterMsg("flight", managerName)
+    mec ! RegisterMsg("flight", 1, managerName)
+    mec ! RegisterMsg("flight", 2, managerName)
 
-    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(1, 100.5, 10.0))))
-    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(2, 300.0, 100.0))))
-    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(1, 130.5, 20.0))))
-    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(2, 350.0, 110.0))))
-    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(1, 160.5, 30.0))))
-    mec ! UpdateMsg(NMessage("flight", SimulationManager.serializeFlight(Flight(2, 400.0, 120.0))))
+    timers.startPeriodicTimer(TickKey, Update, 10.millisecond)
   }
 
+  def update(): Unit = {
+    if (updateValue < 1000) {
+      mec ! UpdateMsg(NMessage("flight", 1, SimulationManager.serializeFlight(Flight(1, updateValue * 10.0, updateValue * 50.0))))
+      mec ! UpdateMsg(NMessage("flight", 2, SimulationManager.serializeFlight(Flight(2, updateValue * 20.0, updateValue * 100.0))))
+    }
+
+    if (updateValue == 1000) {
+      mec ! DeleteMsg(NMessage("flight", 1, Array[Byte]()))
+      mec ! DeleteMsg(NMessage("flight", 2, Array[Byte]()))
+    }
+
+    updateValue += 1
+  }
+
+  def procStartResume(event: StartResume): Unit = doFlight()
 
   //  todo: need to implement
   def receive = {
@@ -100,28 +127,48 @@ class SimulationManager(meb: ActorRef) extends Actor {
     case DiscoverMsg(msg) =>
       println("[Simulation Manager] discover msg received. " + msg)
       msg.name match {
-        case "flight" =>
-          SimulationManager.DiscoverMap += (msg.name -> SimulationManager.deserializeFlight)
-
         case "powerOn" =>
-          SimulationManager.DiscoverMap += (msg.name -> SimulationManager.deserializePowerOn)
+          val obj = SimulationManager.DiscoverMap.get(msg.name) match {
+            case Some(x) => Map(msg.name -> (x ++ Map(msg.objID -> PowerOn(0, 0))))
+            case None => Map(msg.name -> Map(msg.objID -> PowerOn(0, 0)))
+          }
+          SimulationManager.DiscoverMap = SimulationManager.DiscoverMap ++ obj
 
-        case _ => println("[Simulation Manager] msg is not register. fail discover!")
+        case _ => println("[Simulation Manager] unregister message. discover fail!")
       }
 
     case ReflectMsg(msg) =>
       println("[Simulation Manager] Reflect msg received. " + msg)
-      SimulationManager.DiscoverMap.get(msg.name) match {
-        case Some(deserializer) =>
-          val obj = deserializer(msg.data)
-          println("[Simulation Manager] " + obj.toString)
+      msg.name match {
+        case "powerOn" =>
+          val m = SimulationManager.DiscoverMap(msg.name).updated(msg.objID, SimulationManager.deserializePowerOn(msg.data))
+          SimulationManager.DiscoverMap = SimulationManager.DiscoverMap ++ Map(msg.name -> m)
+          println(m)
 
-        case None => println("[Simulation Manager] msg is not discover. fail reflect!")
+        case _ => println("[Simulation Manager] can't find object in discover map. reflect fail!")
       }
 
-    case RecvMsg(msg) => println("[Simulation Manager] Recv msg received. " + msg)
+    case RecvMsg(msg) =>
+      println("[Simulation Manager] Recv msg received. " + msg)
+      msg.name match {
+        case "startResume" =>
+          val event = SimulationManager.deserializeStartResume(msg.data)
+          procStartResume(event)
 
-    case RemoveMsg(msg) => println("[Simulation Manager] Remove msg received. " + msg)
+        case _ => println("[Simulation Manager] unknwon interaction message!")
+      }
+
+    case RemoveMsg(msg) =>
+      println("[Simulation Manager] Remove msg received. " + msg)
+      val m = SimulationManager.DiscoverMap(msg.name) - msg.objID
+      SimulationManager.DiscoverMap = SimulationManager.DiscoverMap.updated(msg.name, m)
+      println(SimulationManager.DiscoverMap)
+
+    case SimulationManager.Update => update()
+
+    case PubSubInfoForwarding(userName) => init()
+
+    case _ => println("[Simulation Manager] unknown Pub/Sub message. actor receive function fail!")
   }
 }
 
@@ -131,7 +178,6 @@ object Integrator_Test {
     val config = ConfigFactory.load("server")
     val system = ActorSystem("server", config)
 
-    //  todo: need to create integrator level actor?
     val meb = system.actorOf(Props[MEB_Proto], "MEB")
     val simulationManager = system.actorOf(Props(new SimulationManager(meb)), "SimulationManager")
   }

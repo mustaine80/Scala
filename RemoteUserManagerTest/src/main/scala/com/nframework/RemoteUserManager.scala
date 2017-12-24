@@ -1,25 +1,23 @@
 package com.nframework
 
-import akka.actor.{Actor, ActorIdentity, ActorRef, ActorSelection, ActorSystem, Identify, Props}
+import akka.actor.{Actor, ActorIdentity, ActorRef, ActorSelection, ActorSystem, Identify, Props, Timers}
+import com.nframework.ControlManager.{TickKey, Update}
+import com.nframework.mec.MEC_Proto.PubSubInfoForwarding
 import com.nframework.mec._
 import com.nframework.nom.{NDouble, NInteger, _}
 import com.typesafe.config.ConfigFactory
-
-import scala.collection.mutable
+import scala.concurrent.duration._
 
 
 case class Flight(id: Int, velocity: Double, position: Double)
 case class PowerOn(systemID: Int, subsystemID: Int)
+case class StartResume(isStart: Int)
 
 object ControlManager {
-  /** todo: NOMParser 의 parsing 정보는 1회만 생성하고 이를 가져다 쓰는 방식이어야 하는데, 현재는 필요시 생성하여 쓰는 방식이다.
-    * immutable 하게 생성하여 get 하는 방식으로 보완해야 한다.
-    */
-  Proto_NOMParser.parse("src/main/Resources/test.json")
-  val objects = Proto_NOMParser.objectTypes
-  val interactions = Proto_NOMParser.interactionTypes
+  private object TickKey
+  private object Update
 
-  var DiscoverMap = mutable.Map.empty[String, Function1[Array[Byte], AnyRef]]
+  var DiscoverMap = Map.empty[String, Map[Int, AnyRef]]
 
 
   /** 발행(pub)할 토픽 정보를 직렬화 하는 함수를 사용자가 구현한다.
@@ -66,18 +64,31 @@ object ControlManager {
     PowerOn(systemID.value, subsystemID.value)
   }
 
+  //  StartResume
+  def serializeStartResume(startResume: StartResume): Array[Byte] = {
+    NInteger(startResume.isStart).serialize()._1
+  }
+
+  def deserializeStartResume(data: Array[Byte]): StartResume = {
+    var offset = 0
+    val startResume = NInteger(0)
+
+    startResume.deserialize(data, offset)
+
+    StartResume(startResume.value)
+  }
 }
 
 
-class ControlManager(meb: ActorRef) extends Actor {
+class ControlManager(meb: ActorRef) extends Actor with Timers {
   val managerName = "Control Manager"
   val mec = context.actorOf(Props(new MEC_Proto(managerName, context.self, meb)), "MEC_ControlManager")
 
-  init()
+  //  test 용 임시 변수
+  var updateValue: Int = 0
 
   def init(): Unit = {
     println("control manager initialize ...")
-    Thread.sleep(5000)    //  todo: 현재 MEB 에 msg sharing 정보 전파 이후에 RegisterMsg 요청이 가능함. 보완 필요
     doControl()
   }
 
@@ -87,46 +98,78 @@ class ControlManager(meb: ActorRef) extends Actor {
 
     */
   def doControl(): Unit = {
+    mec ! SendMsg(NMessage("startResume", 0, ControlManager.serializeStartResume(StartResume(20000))))
 
-    mec ! RegisterMsg("powerOn", managerName)
+    Thread.sleep(100)  /// Simulation Manager 가 start event 처리를 하기 위한 시간 확보
 
-    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(1, 101))))
-    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(2, 201))))
-    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(3, 301))))
-    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(4, 401))))
-    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(5, 501))))
-    mec ! UpdateMsg(NMessage("powerOn", ControlManager.serializePowerOn(PowerOn(6, 601))))
+    mec ! RegisterMsg("powerOn", 1, managerName)
+    mec ! RegisterMsg("powerOn", 2, managerName)
+
+    timers.startPeriodicTimer(TickKey, Update, 10.millisecond)
+  }
+
+  def update(): Unit = {
+    if (updateValue < 1000) {
+      mec ! UpdateMsg(NMessage("powerOn", 1, ControlManager.serializePowerOn(PowerOn(1, updateValue + 1))))
+      mec ! UpdateMsg(NMessage("powerOn", 2, ControlManager.serializePowerOn(PowerOn(2, updateValue + 10001))))
+    }
+
+    if (updateValue == 1000) {
+      mec ! DeleteMsg(NMessage("powerOn", 1, Array[Byte]()))
+      mec ! DeleteMsg(NMessage("powerOn", 2, Array[Byte]()))
+    }
+
+    updateValue += 1
   }
 
   //  todo: need to implement
   def receive = {
     //  mec -> user
-    //  todo: need to NOM serialization
     case DiscoverMsg(msg) =>
       println("[Control Manager] discover msg received. " + msg)
       msg.name match {
         case "flight" =>
-          ControlManager.DiscoverMap += (msg.name -> ControlManager.deserializeFlight)
+          val obj = ControlManager.DiscoverMap.get(msg.name) match {
+            case Some(x) => Map(msg.name -> (x ++ Map(msg.objID -> Flight(msg.objID, 0, 0))))
+            case None => Map(msg.name -> Map(msg.objID -> Flight(msg.objID, 0, 0)))
+          }
+          ControlManager.DiscoverMap = ControlManager.DiscoverMap ++ obj
 
-        case "powerOn" =>
-          ControlManager.DiscoverMap += (msg.name -> ControlManager.deserializePowerOn)
-
-        case _ => println("[Control Manager] msg is not register. fail discover!")
+        case _ => println("[Control Manager] unregister message. discover fail!")
       }
 
     case ReflectMsg(msg) =>
       println("[Control Manager] Reflect msg received. " + msg)
-      ControlManager.DiscoverMap.get(msg.name) match {
-        case Some(deserializer) =>
-          val obj = deserializer(msg.data)
-          println("[Control Manager] " + obj.toString)
+      msg.name match {
+        case "flight" =>
+          val m = ControlManager.DiscoverMap(msg.name).updated(msg.objID, ControlManager.deserializeFlight(msg.data))
+          ControlManager.DiscoverMap = ControlManager.DiscoverMap ++ Map(msg.name -> m)
+          println(m)
 
-        case None => println("[Control Manager] msg is not discover. fail reflect!")
+        case _ => println("[Control Manager] can't find object in discover map. reflect fail!")
       }
 
-    case RecvMsg(msg) => println("[Control Manager] Recv msg received. " + msg)
+    case RecvMsg(msg) =>
+      println("[Control Manager] Recv msg received. " + msg)
+      msg.name match {
+        case "startResume" =>
+          val event = ControlManager.deserializeStartResume(msg.data)
+          println(event)
 
-    case RemoveMsg(msg) => println("[Control Manager] Remove msg received. " + msg)
+        case _ => println("[Control Manager] unknwon interaction message!")
+      }
+
+    case RemoveMsg(msg) =>
+      println("[Control Manager] Remove msg received. " + msg)
+      val m = ControlManager.DiscoverMap(msg.name) - msg.objID
+      ControlManager.DiscoverMap = ControlManager.DiscoverMap.updated(msg.name, m)
+      println(ControlManager.DiscoverMap)
+
+    case Update => update()
+
+    case PubSubInfoForwarding(userName) => init()
+
+    case _ => println("[Control Manager] unknown Pub/Sub message. actor receive function fail!")
   }
 }
 
@@ -134,7 +177,6 @@ class ControlManager(meb: ActorRef) extends Actor {
 class RemoteUserManager_Test(selection: ActorSelection, path: String) extends Actor {
   selection ! Identify(None)
 
-  //  todo: MEB actor that do not work should be considered
   def receive = {
     case ActorIdentity(_, Some(actorRef)) =>
       val controlManager = context.actorOf(Props(new ControlManager(actorRef)), "ControlManager")

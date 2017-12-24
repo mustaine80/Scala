@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 
 import akka.serialization.SerializerWithStringManifest
 import boopickle.Default._
-import com.nframework.mec.MEC_Proto.{MebAttatch, PubSubInfo}
+import com.nframework.mec.MEC_Proto.{MebAttatch, PubSubInfo, PubSubInfoForwarding}
 import com.nframework.mec._
 
 class PubSubSerializer extends SerializerWithStringManifest {
@@ -21,6 +21,7 @@ class PubSubSerializer extends SerializerWithStringManifest {
 
   val MebAttatchManifest = classOf[MebAttatch].getName
   val PubSubInfoManifest = classOf[PubSubInfo].getName
+  val PubSubInfoForwardingManifest = classOf[PubSubInfoForwarding].getName
 
   override def manifest(o: AnyRef): String = o match {
     case _: RegisterMsg => RegisterMsgManifest
@@ -34,6 +35,7 @@ class PubSubSerializer extends SerializerWithStringManifest {
 
     case _: MebAttatch => MebAttatchManifest
     case _: PubSubInfo => PubSubInfoManifest
+    case _: PubSubInfoForwarding => PubSubInfoForwardingManifest
   }
 
   override def toBinary(o: AnyRef): Array[Byte] = o match {
@@ -48,6 +50,7 @@ class PubSubSerializer extends SerializerWithStringManifest {
 
     case m: MebAttatch => Pickle.intoBytes(m).array()
     case m: PubSubInfo => Pickle.intoBytes(m).array()
+    case m: PubSubInfoForwarding => Pickle.intoBytes(m).array()
   }
 
   override def fromBinary(bytes: Array[Byte], manifest: String): AnyRef = manifest match {
@@ -62,6 +65,7 @@ class PubSubSerializer extends SerializerWithStringManifest {
 
     case MebAttatchManifest => Unpickle[MebAttatch].fromBytes(ByteBuffer.wrap(bytes))
     case PubSubInfoManifest => Unpickle[PubSubInfo].fromBytes(ByteBuffer.wrap(bytes))
+    case PubSubInfoForwardingManifest => Unpickle[PubSubInfoForwarding].fromBytes(ByteBuffer.wrap(bytes))
   }
 
   implicit val pubSubPickler = boopickle.CompositePickler[PubSub]

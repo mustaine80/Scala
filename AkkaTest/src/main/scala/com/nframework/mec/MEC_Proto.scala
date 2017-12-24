@@ -17,6 +17,8 @@ object MEC_Proto {
    *  또한, 전달인자를 이용하여 User Manager 를 pub/sub table 에 등록할 수 있다. */
   case class MebAttatch(name: String)
 
+  case class PubSubInfoForwarding(name: String) /// msg sharing 정보 전파 요청이 완료된 것을 확인하기 위한 용도
+
   /* pub/sub 정보를 MEB 에 넘기기 위한 클래스 */
   case class PubSubInfo(msgName: String, managerName: String, sharing: String)
 
@@ -31,7 +33,7 @@ object MEC_Proto {
 abstract class PubSub
 
 /// msg: mec -> meb
-case class RegisterMsg(msgName: String, userName: String) extends PubSub
+case class RegisterMsg(msgName: String, objID: Int, userName: String) extends PubSub
 case class UpdateMsg(msg: NMessage) extends PubSub
 case class SendMsg(msg: NMessage) extends PubSub
 case class DeleteMsg(msg: NMessage) extends PubSub
@@ -47,16 +49,16 @@ case class RemoveMsg(msg: NMessage) extends PubSub
 class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
   extends Actor with Timers {
 
-  var receivedNOMList = ListBuffer[RecvMsg]()
-  var reflectedNOMList = ListBuffer[(ReflectMsg)]()
   var discoveredNOMList = ListBuffer[DiscoverMsg]()
+  var reflectedNOMList = ListBuffer[(ReflectMsg)]()
+  var receivedNOMList = ListBuffer[RecvMsg]()
   var removedNOMList = ListBuffer[RemoveMsg]()
 
   init()
 
   def init(): Unit = {
     meb ! MebAttatch(userName)
-    timers.startPeriodicTimer(TickKey, Pop, 1.second) //  todo: 주기를 1ms 으로 변경해야 한다.
+    timers.startPeriodicTimer(TickKey, Pop, 1.millisecond)
     println("MEC initialize ...")
   }
 
@@ -70,21 +72,20 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
   }
 
   def task(): Unit = {
-    println("NOM msg processing...")
-
     discoveredNOMList = msgPop(discoveredNOMList, user ! _)
     reflectedNOMList = msgPop(reflectedNOMList, user ! _)
     receivedNOMList = msgPop(receivedNOMList, user ! _)
     removedNOMList = msgPop(removedNOMList, user ! _)
   }
 
-
-  //  todo: Seq 를 한번에 넘겨야 하는데, 직렬화 처리에 문제가 있다. 일단 elem 단위로 넘긴다.
-  //  todo: parsing 결과에 대해서도 future 처리가 필요하다.
   def pubSubInfoForwarding: Unit = {
-    Proto_NOMParser.parse("src/main/Resources/test.json")
-    Proto_NOMParser.objectTypes.foreach{ case (msgName, obj) => meb ! PubSubInfo(msgName, userName, obj.sharing) }
-    Proto_NOMParser.interactionTypes.foreach{ case (msgName, param) => meb ! PubSubInfo(msgName, userName, param.sharing) }
+    if (Proto_NOMParser.parse("src/main/Resources/test.json")) {
+      Proto_NOMParser.objectTypes.foreach{ case (msgName, obj) => meb ! PubSubInfo(msgName, userName, obj.sharing) }
+      Proto_NOMParser.interactionTypes.foreach{ case (msgName, param) => meb ! PubSubInfo(msgName, userName, param.sharing) }
+      meb ! PubSubInfoForwarding(userName)
+    } else {
+      println("[MEC] NOM parsing fail!")
+    }
   }
 
 
@@ -96,25 +97,21 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     case m: DeleteMsg => meb ! m
 
     //  meb -> mec: data push
+    //  mec 는 단순히 Pub/Sub msg 에 대한 stack 역할만을 수행한다.
     case m: DiscoverMsg => discoveredNOMList += m
     case m: ReflectMsg => reflectedNOMList += m
-    case m: RecvMsg => {
-      //  todo: need to implement
-      //  val msg = nomMsg.clone()
-      //  msg.setOwner(userName)
-      receivedNOMList += m
-    }
-
-    case s @ RemoveMsg(msg) => {
-      val r = (discoveredNOMList find (_.msg == s.msg)).get
-      discoveredNOMList -= r
-      removedNOMList += RemoveMsg(r.msg)
-    }
+    case m: RecvMsg => receivedNOMList += m
+    case m: RemoveMsg => removedNOMList += m
 
     //  MEB attach ack 처리
     case "MEB attatchment success" =>
-      println("'Simulation Manager - MEB' attatchment success")
+      println("[MEC] MEB attatchment success")
       pubSubInfoForwarding
+
+    //  MEB pub sub forwarding ack 처리
+    case "PubSub info forwarding complete" =>
+      println("PubSub info forwarding success")
+      user ! PubSubInfoForwarding(userName)
 
     //  MEC self pub/sub msg pop schedule
     case Pop => task()

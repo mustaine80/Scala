@@ -94,7 +94,7 @@
       "subsystemID" : {
         "type" : "int",
         "size" : "1",
-        "fixedLength" : "48",
+        "fixedLength" : "0",
         "indicator" : "1"
       },
       "sharing" : "PublishSubscribe",
@@ -103,9 +103,9 @@
   },
 
   "Interactions" : {
-    "interaction1" : {
+    "startResume" : {
       "field1" : {
-        "type" : "double",
+        "type" : "int",
         "size" : "1",
         "fixedLength" : "0",
         "indicator" : "0"
