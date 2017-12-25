@@ -12,21 +12,26 @@ trait Proto_Parser {
   var path = ""
 }
 
+//  nom schema 를 통한 자동 직렬화를 지원
+trait NomSerializable {
+  def getValues(): List[NValueType]   /// nom parser 에서 관리하는 object type 에 대한 mapping 정보 제공
+  def getName(): String   /// nom parser 에서 관리하는 object type key
+  def setValues(ns: NValueType*): NomSerializable   /// 역직렬화 시 객체 replication 을 위해 필요
+}
 
 abstract class TypeModel
 
-//  todo: need to PrimitiveModel ???
-case class BasicType_Proto(length: Int, endian: String, primitives: AnyRef) extends TypeModel
+case class BasicType_Proto(length: Int, endian: String, primitive: String) extends TypeModel
 
 case class EnumType_Proto(length: Int, enums: Map[String, Int]) extends TypeModel
 
-case class ComplexType_Proto(models: Seq[(String, TypeModel, Int)]) extends TypeModel
+case class ComplexType_Proto(models: List[(String, TypeModel, Int)]) extends TypeModel
 
 case class Field_Proto(name: String, model: TypeModel, size: Int, fixedLength: Int, indicator: Int) extends TypeModel
 
-case class Object_Proto(fields: Seq[Field_Proto], sharing: String, alignment: String) extends TypeModel
+case class Object_Proto(fields: List[Field_Proto], sharing: String, alignment: String) extends TypeModel
 
-case class Interaction_Proto(fields: Seq[Field_Proto], sharing: String, alignment: String) extends TypeModel
+case class Interaction_Proto(fields: List[Field_Proto], sharing: String, alignment: String) extends TypeModel
 
 object Proto_NOMParser extends Proto_Parser {
   var basicTypes = Map[String, BasicType_Proto]()
@@ -109,7 +114,7 @@ object Proto_NOMParser extends Proto_Parser {
         val size = _type("size").toInt
         (name, model, size)
       }
-    }.toSeq
+    }.toList
     ComplexType_Proto(models)
   }
 
@@ -117,7 +122,7 @@ object Proto_NOMParser extends Proto_Parser {
   def makeObjectType(typeInfo: Map[String, Map[String, String]]): Object_Proto = {
     val sharing = typeInfo("sharing").asInstanceOf[String]
     val alignment = typeInfo("alignment").asInstanceOf[String]
-    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, info) => makeField(alias, info)}.toSeq
+    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, info) => makeField(alias, info)}.toList
     Object_Proto(fields, sharing, alignment)
   }
 
@@ -125,7 +130,7 @@ object Proto_NOMParser extends Proto_Parser {
   def makeInteractionType(typeInfo: Map[String, Map[String, String]]): Interaction_Proto = {
     val sharing = typeInfo("sharing").asInstanceOf[String]
     val alignment = typeInfo("alignment").asInstanceOf[String]
-    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, info) => makeField(alias, info)}.toSeq
+    val fields = (typeInfo - ("sharing", "alignment")).map{case (alias, info) => makeField(alias, info)}.toList
     Interaction_Proto(fields, sharing, alignment)
   }
 
@@ -147,6 +152,81 @@ object Proto_NOMParser extends Proto_Parser {
         else
           complexTypes(hint)
    }
+
+
+  //  NOM schema 정보를 기반으로 NOM 객체를 생성한다. 이 정보는 NMessage 내 NOM 객체를 직렬화하는데 사용한다.
+  //  todo: case 에서 처리해야 하는 모든 NOM type 을 추가해야 한다. 일단 test.json 을 파싱할 정도로만 구현한다.
+  def getBasicTypeNOM(primitive: String): NValueType = {
+    primitive match {
+      case "Integer" => NInteger(0)
+      case "Double" => NDouble(0.0)
+      case "String" => NString("")
+      case _ => println("[NOM parser] getBasicTypeNOM fail! unknown type."); NInteger(0)
+    }
+  }
+
+
+  def getEnumTypeNOM(enums: Map[String, Int]): List[NValueType] = {
+    val nom = for (e <- enums) yield NEnum(e._1, e._2)
+    nom.toList
+  }
+
+
+  def getComplexTypeNOM(models: Seq[(String, TypeModel, Int)]): List[NValueType] = {
+    val nom = for (m <- models) yield getNOMValue(m._2, m._3)
+    nom.flatten.toList
+  }
+
+
+  def getObjectTypeNOM(object_proto: Object_Proto): List[NValueType] = {
+    val nom = for (f <- object_proto.fields) yield getNOMValue(f.model, f.size)
+    nom.flatten
+  }
+
+
+  def getInteractionTypeNOM(interaction_proto: Interaction_Proto): List[NValueType] = {
+    val nom = for (f <- interaction_proto.fields) yield getNOMValue(f.model, f.size)
+    nom.flatten
+  }
+
+
+  def getNOMValue(t: TypeModel, size: Int): List[NValueType] = {
+    t match {
+      case z: BasicType_Proto => {for (i <- 1 to size) yield getBasicTypeNOM(z.primitive)}.toList
+      case z: EnumType_Proto => {for (i <- 1 to size) yield getEnumTypeNOM(z.enums)}.toList.flatten
+      case z: ComplexType_Proto => {for (i <- 1 to size) yield getComplexTypeNOM(z.models)}.toList.flatten
+    }
+  }
+
+
+  //  todo: 일단 BasicType 만 지원하도록 구현한다.
+  def nomObjectTypeSerializer(s: NomSerializable): Array[Byte] = {
+    var data = Array.empty[Byte]
+    val obj = getObjectTypeNOM(objectTypes(s.getName())) zip s.getValues()
+
+    obj foreach { x =>
+      x._1.setValue(x._2)
+      data = data ++ x._1.serialize()._1
+    }
+
+    data
+  }
+
+
+  //  todo: 일단 BasicType 만 지원하도록 구현한다.
+  def nomObjectTypeDeserializer(s: NomSerializable, data: Array[Byte]): NomSerializable = {
+    var offset = 0
+    var lists = List.empty[NValueType]
+
+    val obj = getObjectTypeNOM(objectTypes(s.getName())) zip s.getValues()
+
+    obj foreach { x =>
+      offset += x._2.deserialize(data, offset)
+      lists = lists :+ x._2
+    }
+
+    s.setValues(lists: _*)
+  }
 }
 
 

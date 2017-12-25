@@ -30,6 +30,7 @@ object MEC_Proto {
   case class GetState(test: ActorRef)
 }
 
+
 abstract class PubSub
 
 /// msg: mec -> meb
@@ -107,6 +108,9 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     case "MEB attatchment success" =>
       println("[MEC] MEB attatchment success")
       pubSubInfoForwarding
+
+    //  todo: MEB detach ack 처리
+
 
     //  MEB pub sub forwarding ack 처리
     case "PubSub info forwarding complete" =>

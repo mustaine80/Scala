@@ -5,13 +5,36 @@ import com.nframework.SimulationManager.{TickKey, Update}
 import com.nframework.meb.MEB_Proto
 import com.nframework.mec.MEC_Proto.PubSubInfoForwarding
 import com.nframework.mec._
-import com.nframework.nom._
+import com.nframework.nom.{NomSerializable, _}
 import com.typesafe.config.ConfigFactory
+
 import scala.concurrent.duration._
 
+//  todo: override method 에 대한 NomSerializable trait 을 구현 mix-in 해야 한다.
+case class Flight(id: Int, velocity: Double, position: Double) extends NomSerializable {
+  override def getName(): String = "flight"
 
-case class Flight(id: Int, velocity: Double, position: Double)
-case class PowerOn(systemID: Int, subsystemID: Int)
+  override def getValues(): List[NValueType] =
+    List(NInteger(id), NDouble(velocity), NDouble(position))
+
+  override def setValues(ns: NValueType*): NomSerializable = ns match {
+    case _id :: _velocity :: _position :: Nil => Flight(_id.toInt(), _velocity.toDouble(), _position.toDouble())
+    case _ => println("[CLASS Flight] unknwon sequence... setValues() fail!"); Flight(0, 0.0, 0.0)
+  }
+}
+
+case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
+  override def getName(): String = "powerOn"
+
+  override def getValues(): List[NValueType] =
+    List(NInteger(systemID), NInteger(subsystemID))
+
+  override def setValues(ns: NValueType*): NomSerializable = ns match {
+    case _systemID :: _subsystemID :: Nil => PowerOn(_systemID.toInt(), _subsystemID.toInt())
+    case _ => println("[CLASS PowerOn] unknwon sequence... setValues() fail!"); PowerOn(0, 0)
+  }
+}
+
 case class StartResume(isStart: Int)
 
 
@@ -22,49 +45,9 @@ object SimulationManager {
   var DiscoverMap = Map.empty[String, Map[Int, AnyRef]]
 
 
-  /** 발행(pub)할 토픽 정보를 직렬화 하는 함수를 사용자가 구현한다.
-    * 구독(sub)할 토픽 정보를 역직렬화 하는 함수를 사용자가 구현한다.
-    * todo: NOM schema 를 이용하여 자동화할 필요가 있다.
+  /**
+    *  NOM schema 를 이용하여 자동화. 일단 Object Type 만 적용한다.
     */
-
-  //  Flight
-  def serializeFlight(flight: Flight): Array[Byte] = {
-    NInteger(flight.id).serialize()._1 ++
-      NDouble(flight.velocity).serialize()._1 ++
-      NDouble(flight.position).serialize()._1
-  }
-
-  def deserializeFlight(data: Array[Byte]): Flight = {
-    var offset = 0
-    val id = NInteger(0)
-    val velocity = NDouble(0.0)
-    val position = NDouble(0.0)
-
-    offset = id.deserialize(data, offset)
-    offset += velocity.deserialize(data, offset)
-    offset += position.deserialize(data, offset)
-
-    Flight(id.value, velocity.value, position.value)
-  }
-
-
-  //  PowerOn
-  def serializePowerOn(powerOn: PowerOn): Array[Byte] = {
-    NInteger(powerOn.systemID).serialize()._1 ++
-      NInteger(powerOn.subsystemID).serialize()._1
-  }
-
-  def deserializePowerOn(data: Array[Byte]): PowerOn = {
-    var offset = 0
-    val systemID = NInteger(0)
-    val subsystemID = NInteger(0)
-
-    offset = systemID.deserialize(data, offset)
-    offset += subsystemID.deserialize(data, offset)
-
-    PowerOn(systemID.value, subsystemID.value)
-  }
-
 
   //  StartResume
   def serializeStartResume(startResume: StartResume): Array[Byte] = {
@@ -79,6 +62,12 @@ object SimulationManager {
 
     StartResume(startResume.value)
   }
+
+  Proto_NOMParser.parse("src/main/Resources/test.json")
+  val objects = Proto_NOMParser.objectTypes
+  val interactions = Proto_NOMParser.interactionTypes
+
+
 }
 
 
@@ -105,10 +94,17 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
     timers.startPeriodicTimer(TickKey, Update, 10.millisecond)
   }
 
+  /**
+    * todo: update 시 full object 가 아닌 실제 변경이 일어난 부분 정보만 전달할 수 있는 기능이 필요하다.
+    *       32bit flag ??
+    */
   def update(): Unit = {
     if (updateValue < 1000) {
-      mec ! UpdateMsg(NMessage("flight", 1, SimulationManager.serializeFlight(Flight(1, updateValue * 10.0, updateValue * 50.0))))
-      mec ! UpdateMsg(NMessage("flight", 2, SimulationManager.serializeFlight(Flight(2, updateValue * 20.0, updateValue * 100.0))))
+      mec ! UpdateMsg(NMessage(
+        "flight", 1, Proto_NOMParser.nomObjectTypeSerializer(Flight(1, updateValue * 10.0, updateValue * 50.0))))
+
+      mec ! UpdateMsg(NMessage(
+        "flight", 2, Proto_NOMParser.nomObjectTypeSerializer(Flight(2, updateValue * 20.0, updateValue * 100.0))))
     }
 
     if (updateValue == 1000) {
@@ -121,7 +117,6 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
 
   def procStartResume(event: StartResume): Unit = doFlight()
 
-  //  todo: need to implement
   def receive = {
     //  mec -> user
     case DiscoverMsg(msg) =>
@@ -141,7 +136,8 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
       println("[Simulation Manager] Reflect msg received. " + msg)
       msg.name match {
         case "powerOn" =>
-          val m = SimulationManager.DiscoverMap(msg.name).updated(msg.objID, SimulationManager.deserializePowerOn(msg.data))
+          val m = SimulationManager.DiscoverMap(msg.name).
+            updated(msg.objID, Proto_NOMParser.nomObjectTypeDeserializer(PowerOn(0,0), msg.data))
           SimulationManager.DiscoverMap = SimulationManager.DiscoverMap ++ Map(msg.name -> m)
           println(m)
 

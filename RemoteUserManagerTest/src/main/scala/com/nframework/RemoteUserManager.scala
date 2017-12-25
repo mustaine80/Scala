@@ -9,8 +9,30 @@ import com.typesafe.config.ConfigFactory
 import scala.concurrent.duration._
 
 
-case class Flight(id: Int, velocity: Double, position: Double)
-case class PowerOn(systemID: Int, subsystemID: Int)
+case class Flight(id: Int, velocity: Double, position: Double) extends NomSerializable {
+  override def getName(): String = "flight"
+
+  override def getValues(): List[NValueType] =
+    List(NInteger(id), NDouble(velocity), NDouble(position))
+
+  override def setValues(ns: NValueType*): NomSerializable = ns match {
+    case _id :: _velocity :: _position :: Nil => Flight(_id.toInt(), _velocity.toDouble(), _position.toDouble())
+    case _ => println("[CLASS Flight] unknwon sequence... setValues() fail!"); Flight(0, 0.0, 0.0)
+  }
+}
+
+case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
+  override def getName(): String = "powerOn"
+
+  override def getValues(): List[NValueType] =
+    List(NInteger(systemID), NInteger(subsystemID))
+
+  override def setValues(ns: NValueType*): NomSerializable = ns match {
+    case _systemID :: _subsystemID :: Nil => PowerOn(_systemID.toInt(), _subsystemID.toInt())
+    case _ => println("[CLASS PowerOn] unknwon sequence... setValues() fail!"); PowerOn(0, 0)
+  }
+}
+
 case class StartResume(isStart: Int)
 
 object ControlManager {
@@ -20,49 +42,9 @@ object ControlManager {
   var DiscoverMap = Map.empty[String, Map[Int, AnyRef]]
 
 
-  /** 발행(pub)할 토픽 정보를 직렬화 하는 함수를 사용자가 구현한다.
-    * 구독(sub)할 토픽 정보를 역직렬화 하는 함수를 사용자가 구현한다.
-    * todo: NOM schema 를 이용하여 자동화할 필요가 있다.
+  /**
+    *  NOM schema 를 이용하여 자동화. 일단 Object Type 만 적용한다.
     */
-
-  //  Flight
-  def serializeFlight(flight: Flight): Array[Byte] = {
-    NInteger(flight.id).serialize()._1 ++
-      NDouble(flight.velocity).serialize()._1 ++
-      NDouble(flight.position).serialize()._1
-  }
-
-  def deserializeFlight(data: Array[Byte]): Flight = {
-    var offset = 0
-    val id = NInteger(0)
-    val velocity = NDouble(0.0)
-    val position = NDouble(0.0)
-
-    offset = id.deserialize(data, offset)
-    offset += velocity.deserialize(data, offset)
-    offset += position.deserialize(data, offset)
-
-    Flight(id.value, velocity.value, position.value)
-  }
-
-
-  //  PowerOn
-  def serializePowerOn(powerOn: PowerOn): Array[Byte] = {
-    NInteger(powerOn.systemID).serialize()._1 ++
-      NInteger(powerOn.subsystemID).serialize()._1
-  }
-
-  def deserializePowerOn(data: Array[Byte]): PowerOn = {
-    var offset = 0
-    val systemID = NInteger(0)
-    val subsystemID = NInteger(0)
-
-
-    offset = systemID.deserialize(data, offset)
-    offset = subsystemID.deserialize(data, offset)
-
-    PowerOn(systemID.value, subsystemID.value)
-  }
 
   //  StartResume
   def serializeStartResume(startResume: StartResume): Array[Byte] = {
@@ -110,8 +92,8 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
 
   def update(): Unit = {
     if (updateValue < 1000) {
-      mec ! UpdateMsg(NMessage("powerOn", 1, ControlManager.serializePowerOn(PowerOn(1, updateValue + 1))))
-      mec ! UpdateMsg(NMessage("powerOn", 2, ControlManager.serializePowerOn(PowerOn(2, updateValue + 10001))))
+      mec ! UpdateMsg(NMessage("powerOn", 1, Proto_NOMParser.nomObjectTypeSerializer(PowerOn(1, updateValue + 1))))
+      mec ! UpdateMsg(NMessage("powerOn", 2, Proto_NOMParser.nomObjectTypeSerializer(PowerOn(2, updateValue + 10001))))
     }
 
     if (updateValue == 1000) {
@@ -122,7 +104,6 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
     updateValue += 1
   }
 
-  //  todo: need to implement
   def receive = {
     //  mec -> user
     case DiscoverMsg(msg) =>
@@ -142,7 +123,8 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
       println("[Control Manager] Reflect msg received. " + msg)
       msg.name match {
         case "flight" =>
-          val m = ControlManager.DiscoverMap(msg.name).updated(msg.objID, ControlManager.deserializeFlight(msg.data))
+          val m = ControlManager.DiscoverMap(msg.name).
+            updated(msg.objID, Proto_NOMParser.nomObjectTypeDeserializer(Flight(0, 0.0, 0.0), msg.data))
           ControlManager.DiscoverMap = ControlManager.DiscoverMap ++ Map(msg.name -> m)
           println(m)
 
