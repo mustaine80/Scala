@@ -16,6 +16,7 @@ object MEC_Proto {
    *  MEB actor 는 MebAttatch 메시지 수신 시 sender reference 를 이용하여 MEC reference 를 획득한다.
    *  또한, 전달인자를 이용하여 User Manager 를 pub/sub table 에 등록할 수 있다. */
   case class MebAttatch(name: String)
+  case class MebDetatch(name: String)
 
   case class PubSubInfoForwarding(name: String) /// msg sharing 정보 전파 요청이 완료된 것을 확인하기 위한 용도
 
@@ -109,7 +110,13 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
       println("[MEC] MEB attatchment success")
       pubSubInfoForwarding
 
-    //  todo: MEB detach ack 처리
+    //  MEC 종료 시 MEB detach ack 처리
+    case "MEC quit request" =>
+      println("[MEC] user request stop MEC")
+      meb ! MebDetatch(userName)
+
+    case "MEB detatchment success" =>
+      println("[MEC] MEB detatchment success")
 
 
     //  MEB pub sub forwarding ack 처리

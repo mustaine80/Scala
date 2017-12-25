@@ -1,7 +1,7 @@
 package com.nframework.meb
 
 import akka.actor.{Actor, ActorRef}
-import com.nframework.mec.MEC_Proto.{MebAttatch, PubSubInfo, PubSubInfoForwarding}
+import com.nframework.mec.MEC_Proto.{MebAttatch, MebDetatch, PubSubInfo, PubSubInfoForwarding}
 import com.nframework.mec._
 import com.nframework.nom.NMessage
 
@@ -113,6 +113,11 @@ class MEB_Proto extends Actor {
     case MebAttatch(name) => {
       MEB_Proto.mecMap(name) = sender()
       sender() ! "MEB attatchment success"
+    }
+
+    case MebDetatch(name) => {
+      MEB_Proto.mecMap - name
+      sender() ! "MEB detatchment success"
     }
 
     case m: PubSubInfo => {

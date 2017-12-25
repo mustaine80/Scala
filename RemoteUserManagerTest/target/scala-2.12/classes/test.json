@@ -1,0 +1,139 @@
+{
+  "BasicTypes" : {
+    "int" : {
+      "length" : "4",
+      "endian" : "little",
+      "type" : "Integer"
+    },
+    "intBE" : {
+      "length" : "4",
+      "endian" : "big",
+      "type" : "Integer"
+    },
+    "double" : {
+      "length" : "8",
+      "endian" : "little",
+      "type" : "Double"
+    },
+    "doubleBE" : {
+      "length" : "8",
+      "endian" : "big",
+      "type" : "Double"
+    },
+    "wstring" : {
+      "length" : "2",
+      "endian" : "little",
+      "type" : "String"
+    },
+    "wstringBE" : {
+      "length" : "2",
+      "endian" : "big",
+      "type" : "String"
+    }
+  },
+
+  "EnumTypes" : {
+    "Enum1" : {
+      "length" : "4",
+      "ENUMERATOR1" : "1",
+      "ENUMERATOR2" : "2",
+      "ENUMERATOR3" : "3"
+    },
+    "Enum2" :
+    {
+      "length" : "2",
+      "ENUM1" : "10",
+      "ENUM2" : "20",
+      "ENUM3" : "30"
+    }
+  },
+
+  "ComplexTypes" : {
+    "Complex1" : {
+      "basic1" : {
+        "type" : "intBE",
+        "size" : "1"
+      },
+      "enum1" : {
+        "type" : "Enum1",
+        "size" : "2"
+      }
+    }
+  },
+
+  "Objects" : {
+    "flight" : {
+      "id" : {
+        "type" : "int",
+        "size" : "1",
+        "fixedLength" : "0",
+        "indicator" : "0"
+      },
+      "velocity" : {
+        "type" : "double",
+        "size" : "1",
+        "fixedLength" : "0",
+        "indicator" : "1"
+      },
+      "position" : {
+        "type" : "double",
+        "size" : "1",
+        "fixedLength" : "0",
+        "indicator" : "2"
+      },
+      "sharing" : "PublishSubscribe",
+      "alignment" : "none"
+    },
+    "powerOn" : {
+      "systemID" : {
+        "type" : "int",
+        "size" : "1",
+        "fixedLength" : "0",
+        "indicator" : "0"
+      },
+      "subsystemID" : {
+        "type" : "int",
+        "size" : "1",
+        "fixedLength" : "48",
+        "indicator" : "1"
+      },
+      "sharing" : "PublishSubscribe",
+      "alignment" : "none"
+    }
+  },
+
+  "Interactions" : {
+    "startResume" : {
+      "field1" : {
+        "type" : "int",
+        "size" : "1",
+        "fixedLength" : "0",
+        "indicator" : "0"
+      },
+      "field2" : {
+        "type" : "Complex1",
+        "size" : "1",
+        "fixedLength" : "1",
+        "indicator" : "2"
+      },
+      "sharing" : "PublishSubscribe",
+      "alignment" : "none"
+    },
+    "interaction2" : {
+      "field11" : {
+        "type" : "double",
+        "size" : "1",
+        "fixedLength" : "0",
+        "indicator" : "0"
+      },
+      "field22" : {
+        "type" : "Complex1",
+        "size" : "1",
+        "fixedLength" : "0",
+        "indicator" : "0"
+      },
+      "sharing" : "PublishSubscribe",
+      "alignment" : "none"
+    }
+  }
+}

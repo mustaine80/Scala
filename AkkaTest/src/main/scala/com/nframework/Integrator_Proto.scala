@@ -62,12 +62,6 @@ object SimulationManager {
 
     StartResume(startResume.value)
   }
-
-  Proto_NOMParser.parse("src/main/Resources/test.json")
-  val objects = Proto_NOMParser.objectTypes
-  val interactions = Proto_NOMParser.interactionTypes
-
-
 }
 
 
