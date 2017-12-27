@@ -7,11 +7,12 @@ import com.nframework.mec.MEC_Proto.PubSubInfoForwarding
 import com.nframework.mec._
 import com.nframework.nom.{NomSerializable, _}
 import com.typesafe.config.ConfigFactory
+
 import scala.concurrent.duration._
 
 
 //  override method 에 대한 NomSerializable trait 에 대한 구현 mix-in 은 getName() 만을 제공한다.
-//  getValues(), setValues() 메소드는 사용자가 구현한다.
+//  getValues(), setValues(), 보조 생성자 메소드는 사용자가 구현한다.
 case class Flight(id: Int, velocity: Double, position: Double) extends NomSerializable {
   override def getValues(): List[NValueType] =
     List(NInteger(id), NDouble(velocity), NDouble(position))
@@ -21,6 +22,8 @@ case class Flight(id: Int, velocity: Double, position: Double) extends NomSerial
     case _id :: _velocity :: _position :: Nil => Flight(_id.toInt(), _velocity.toDouble(), _position.toDouble())
     case _ => println("[CLASS Flight] unknwon sequence... setValues() fail!"); Flight(0, 0.0, 0.0)
   }
+
+  def this() { this(id = 0, velocity = 0.0, position = 0.0) }
 }
 
 case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
@@ -31,6 +34,8 @@ case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
     case _systemID :: _subsystemID :: Nil => PowerOn(_systemID.toInt(), _subsystemID.toInt())
     case _ => println("[CLASS PowerOn] unknwon sequence... setValues() fail!"); PowerOn(0, 0)
   }
+
+  def this() { this(systemID = 0, subsystemID = 0) }
 }
 
 case class StartResume(isStart: Int) extends NomSerializable {
@@ -41,6 +46,9 @@ case class StartResume(isStart: Int) extends NomSerializable {
     case _isStart :: Nil => StartResume(_isStart.toInt())
     case _ => println("[CLASS StartResume] unknwon sequence... setValues() fail!"); StartResume(0)
   }
+
+  //  todo: NomSerializable 에서 abstract method 로 선언해야 한다.
+  def this() { this(isStart = 0) }
 }
 
 
@@ -61,6 +69,7 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
 
   def init(): Unit = {
     println("simulation manager initialize ...")
+    println("!!@#@!#!!!" + getNOMTemplate("StartResume"))
   }
 
 
@@ -96,15 +105,10 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
     updateValue += 1
   }
 
-  //  todo: 내가 구독한 메시지에 대해 사용자가 정의해야 한다. 자동화할 필요가 있다.
+  //  msg name 으로 기본 객체를 반환한다.
   def getNOMTemplate(msgName: String): NomSerializable = {
-    msgName match {
-      case "Flight" => Flight(0, 0.0, 0.0)
-      case "PowerOn" => PowerOn(0, 0)
-      case "StartResume" => StartResume(0)
-
-      case _ => println("[Simulation Manager] msg is not own subscription. " + msgName); StartResume(0)
-    }
+    val nom = Class.forName("com.nframework." + msgName).newInstance()
+    nom.asInstanceOf[NomSerializable].getDefault
   }
 
 

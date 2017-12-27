@@ -19,6 +19,8 @@ trait Proto_Parser {
 trait NomSerializable {
   def getName(): String = getClass().getSimpleName   /// 반환값은 nom parser 에서 관리하는 object type key 로 사용
 
+  def getDefault = setValues(getValues(): _*)   /// User Manager 내 Discover map 에 등록하기 위한 dummy 객체 제공
+
   def getValues(): List[NValueType] /// nom parser 에서 관리하는 object type 에 대한 mapping 정보 제공
 
   def setValues(ns: NValueType*): NomSerializable   /// 역직렬화 시 객체 replication 을 위해 필요
