@@ -7,15 +7,15 @@ import com.nframework.mec.MEC_Proto.PubSubInfoForwarding
 import com.nframework.mec._
 import com.nframework.nom.{NomSerializable, _}
 import com.typesafe.config.ConfigFactory
-
 import scala.concurrent.duration._
 
-//  todo: override method 에 대한 NomSerializable trait 을 구현 mix-in 해야 한다.
-case class Flight(id: Int, velocity: Double, position: Double) extends NomSerializable {
-  override def getName(): String = "flight"
 
+//  override method 에 대한 NomSerializable trait 에 대한 구현 mix-in 은 getName() 만을 제공한다.
+//  getValues(), setValues() 메소드는 사용자가 구현한다.
+case class Flight(id: Int, velocity: Double, position: Double) extends NomSerializable {
   override def getValues(): List[NValueType] =
     List(NInteger(id), NDouble(velocity), NDouble(position))
+
 
   override def setValues(ns: NValueType*): NomSerializable = ns match {
     case _id :: _velocity :: _position :: Nil => Flight(_id.toInt(), _velocity.toDouble(), _position.toDouble())
@@ -24,8 +24,6 @@ case class Flight(id: Int, velocity: Double, position: Double) extends NomSerial
 }
 
 case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
-  override def getName(): String = "powerOn"
-
   override def getValues(): List[NValueType] =
     List(NInteger(systemID), NInteger(subsystemID))
 
@@ -35,33 +33,22 @@ case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
   }
 }
 
-case class StartResume(isStart: Int)
+case class StartResume(isStart: Int) extends NomSerializable {
+  override def getValues(): List[NValueType] =
+    List(NInteger(isStart))
+
+  override def setValues(ns: NValueType*): NomSerializable = ns match {
+    case _isStart :: Nil => StartResume(_isStart.toInt())
+    case _ => println("[CLASS StartResume] unknwon sequence... setValues() fail!"); StartResume(0)
+  }
+}
 
 
 object SimulationManager {
   private object TickKey
   private object Update
 
-  var DiscoverMap = Map.empty[String, Map[Int, AnyRef]]
-
-
-  /**
-    *  NOM schema 를 이용하여 자동화. 일단 Object Type 만 적용한다.
-    */
-
-  //  StartResume
-  def serializeStartResume(startResume: StartResume): Array[Byte] = {
-    NInteger(startResume.isStart).serialize()._1
-  }
-
-  def deserializeStartResume(data: Array[Byte]): StartResume = {
-    var offset = 0
-    val startResume = NInteger(0)
-
-    startResume.deserialize(data, offset)
-
-    StartResume(startResume.value)
-  }
+  var DiscoverMap = Map.empty[String, Map[Int, NomSerializable]]
 }
 
 
@@ -82,8 +69,8 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
    */
   def doFlight(): Unit = {
 
-    mec ! RegisterMsg("flight", 1, managerName)
-    mec ! RegisterMsg("flight", 2, managerName)
+    mec ! RegisterMsg("Flight", 1, managerName)
+    mec ! RegisterMsg("Flight", 2, managerName)
 
     timers.startPeriodicTimer(TickKey, Update, 10.millisecond)
   }
@@ -95,58 +82,59 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
   def update(): Unit = {
     if (updateValue < 1000) {
       mec ! UpdateMsg(NMessage(
-        "flight", 1, Proto_NOMParser.nomObjectTypeSerializer(Flight(1, updateValue * 10.0, updateValue * 50.0))))
+        "Flight", 1, Proto_NOMParser.nomObjectTypeSerializer(Flight(1, updateValue * 10.0, updateValue * 50.0))))
 
       mec ! UpdateMsg(NMessage(
-        "flight", 2, Proto_NOMParser.nomObjectTypeSerializer(Flight(2, updateValue * 20.0, updateValue * 100.0))))
+        "Flight", 2, Proto_NOMParser.nomObjectTypeSerializer(Flight(2, updateValue * 20.0, updateValue * 100.0))))
     }
 
     if (updateValue == 1000) {
-      mec ! DeleteMsg(NMessage("flight", 1, Array[Byte]()))
-      mec ! DeleteMsg(NMessage("flight", 2, Array[Byte]()))
+      mec ! DeleteMsg(NMessage("Flight", 1, Array[Byte]()))
+      mec ! DeleteMsg(NMessage("Flight", 2, Array[Byte]()))
     }
 
     updateValue += 1
   }
 
-  def procStartResume(event: StartResume): Unit = doFlight()
+  //  todo: 내가 구독한 메시지에 대해 사용자가 정의해야 한다. 자동화할 필요가 있다.
+  def getNOMTemplate(msgName: String): NomSerializable = {
+    msgName match {
+      case "Flight" => Flight(0, 0.0, 0.0)
+      case "PowerOn" => PowerOn(0, 0)
+      case "StartResume" => StartResume(0)
+
+      case _ => println("[Simulation Manager] msg is not own subscription. " + msgName); StartResume(0)
+    }
+  }
+
 
   def receive = {
     //  mec -> user
+    //  discover, reflect, remove 를 위한 case class 를 수작업으로 매칭하는 것은 receive 함수가 벌크해지기 때문에 추출한다.
     case DiscoverMsg(msg) =>
       println("[Simulation Manager] discover msg received. " + msg)
-      msg.name match {
-        case "powerOn" =>
-          val obj = SimulationManager.DiscoverMap.get(msg.name) match {
-            case Some(x) => Map(msg.name -> (x ++ Map(msg.objID -> PowerOn(0, 0))))
-            case None => Map(msg.name -> Map(msg.objID -> PowerOn(0, 0)))
-          }
-          SimulationManager.DiscoverMap = SimulationManager.DiscoverMap ++ obj
-
-        case _ => println("[Simulation Manager] unregister message. discover fail!")
+      val obj = SimulationManager.DiscoverMap.get(msg.name) match {
+        case Some(x) => Map(msg.name -> (x ++ Map(msg.objID -> getNOMTemplate(msg.name))))
+        case None => Map(msg.name -> Map(msg.objID -> getNOMTemplate(msg.name)))
       }
+
+      SimulationManager.DiscoverMap = SimulationManager.DiscoverMap ++ obj
 
     case ReflectMsg(msg) =>
       println("[Simulation Manager] Reflect msg received. " + msg)
-      msg.name match {
-        case "powerOn" =>
-          val m = SimulationManager.DiscoverMap(msg.name).
-            updated(msg.objID, Proto_NOMParser.nomObjectTypeDeserializer(PowerOn(0,0), msg.data))
-          SimulationManager.DiscoverMap = SimulationManager.DiscoverMap ++ Map(msg.name -> m)
-          println(m)
+      val obj = SimulationManager.DiscoverMap(msg.name)
+        .updated(msg.objID, Proto_NOMParser.nomObjectTypeDeserializer(getNOMTemplate(msg.name), msg.data))
 
-        case _ => println("[Simulation Manager] can't find object in discover map. reflect fail!")
-      }
+      SimulationManager.DiscoverMap = SimulationManager.DiscoverMap ++ Map(msg.name -> obj)
+      println(obj)
 
     case RecvMsg(msg) =>
       println("[Simulation Manager] Recv msg received. " + msg)
-      msg.name match {
-        case "startResume" =>
-          val event = SimulationManager.deserializeStartResume(msg.data)
-          procStartResume(event)
+      val event = Proto_NOMParser.nomInteractionTypeDeserializer(getNOMTemplate(msg.name), msg.data)
+      println(event)
 
-        case _ => println("[Simulation Manager] unknwon interaction message!")
-      }
+      //  test code
+      if (msg.name == "StartResume") doFlight()
 
     case RemoveMsg(msg) =>
       println("[Simulation Manager] Remove msg received. " + msg)

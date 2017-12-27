@@ -62,7 +62,7 @@
   },
 
   "Objects" : {
-    "flight" : {
+    "Flight" : {
       "id" : {
         "type" : "int",
         "size" : "1",
@@ -84,7 +84,7 @@
       "sharing" : "PublishSubscribe",
       "alignment" : "none"
     },
-    "powerOn" : {
+    "PowerOn" : {
       "systemID" : {
         "type" : "int",
         "size" : "1",
@@ -94,7 +94,7 @@
       "subsystemID" : {
         "type" : "int",
         "size" : "1",
-        "fixedLength" : "48",
+        "fixedLength" : "0",
         "indicator" : "1"
       },
       "sharing" : "PublishSubscribe",
@@ -103,7 +103,7 @@
   },
 
   "Interactions" : {
-    "startResume" : {
+    "StartResume" : {
       "field1" : {
         "type" : "int",
         "size" : "1",
@@ -119,7 +119,7 @@
       "sharing" : "PublishSubscribe",
       "alignment" : "none"
     },
-    "interaction2" : {
+    "Interaction2" : {
       "field11" : {
         "type" : "double",
         "size" : "1",

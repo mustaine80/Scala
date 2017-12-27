@@ -51,7 +51,7 @@ object PubSubTable {
     (items ++ item) filter (_._2.nonEmpty)
   }
 
-  /*  user manager actor 가 resign 되어 unregister 하는 경우를 가정한다.
+  /*  user manager actor 가 resign 또는 MEB detatch 되어 unregister 하는 경우를 가정한다.
    *  이 경우 해당 매니저와 관련된 모든 pub/sub 정보가 제거되어야 한다.
    *
    *  manager name 에 대한 empty Set 처리를 위해 필터를 적용한다.
@@ -116,6 +116,7 @@ class MEB_Proto extends Actor {
     }
 
     case MebDetatch(name) => {
+      PubSubTable.unregister(name)
       MEB_Proto.mecMap - name
       sender() ! "MEB detatchment success"
     }

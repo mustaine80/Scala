@@ -12,12 +12,18 @@ trait Proto_Parser {
   var path = ""
 }
 
-//  nom schema 를 통한 자동 직렬화를 지원
+
+/** nom schema 를 통한 자동 직렬화를 지원
+  * !! getName 반환값을 NOM schema 내 object name 을 클래스명과 동일하게 작성해야 한다.
+  */
 trait NomSerializable {
-  def getValues(): List[NValueType]   /// nom parser 에서 관리하는 object type 에 대한 mapping 정보 제공
-  def getName(): String   /// nom parser 에서 관리하는 object type key
+  def getName(): String = getClass().getSimpleName   /// 반환값은 nom parser 에서 관리하는 object type key 로 사용
+
+  def getValues(): List[NValueType] /// nom parser 에서 관리하는 object type 에 대한 mapping 정보 제공
+
   def setValues(ns: NValueType*): NomSerializable   /// 역직렬화 시 객체 replication 을 위해 필요
 }
+
 
 abstract class TypeModel
 
@@ -155,11 +161,15 @@ object Proto_NOMParser extends Proto_Parser {
 
 
   //  NOM schema 정보를 기반으로 NOM 객체를 생성한다. 이 정보는 NMessage 내 NOM 객체를 직렬화하는데 사용한다.
-  //  todo: case 에서 처리해야 하는 모든 NOM type 을 추가해야 한다. 일단 test.json 을 파싱할 정도로만 구현한다.
   def getBasicTypeNOM(primitive: String): NValueType = {
     primitive match {
-      case "Integer" => NInteger(0)
+      case "Bool" => NBool(false)
+      case "Byte" => NByte(0.toByte)
+      case "Char" => NChar('A')
       case "Double" => NDouble(0.0)
+      case "Float" => NFloat(0.0f)
+      case "Integer" => NInteger(0)
+      case "Short" => NShort(0.toShort)
       case "String" => NString("")
       case _ => println("[NOM parser] getBasicTypeNOM fail! unknown type."); NInteger(0)
     }
@@ -198,8 +208,7 @@ object Proto_NOMParser extends Proto_Parser {
     }
   }
 
-
-  //  todo: 일단 BasicType 만 지원하도록 구현한다.
+  //  todo: 일단 BasicType 만 지원하도록 구현한다. getValues() 에서 complext type 을 처리해서 넘겨줘야 한다.
   def nomObjectTypeSerializer(s: NomSerializable): Array[Byte] = {
     var data = Array.empty[Byte]
     val obj = getObjectTypeNOM(objectTypes(s.getName())) zip s.getValues()
@@ -221,6 +230,35 @@ object Proto_NOMParser extends Proto_Parser {
     val obj = getObjectTypeNOM(objectTypes(s.getName())) zip s.getValues()
 
     obj foreach { x =>
+      offset += x._2.deserialize(data, offset)
+      lists = lists :+ x._2
+    }
+
+    s.setValues(lists: _*)
+  }
+
+  //  todo: 일단 BasicType 만 지원하도록 구현한다. getValues() 에서 complext type 을 처리해서 넘겨줘야 한다.
+  def nomInteractionTypeSerializer(s: NomSerializable): Array[Byte] = {
+    var data = Array.empty[Byte]
+    val interaction = getInteractionTypeNOM(interactionTypes(s.getName())) zip s.getValues()
+
+    interaction foreach { x =>
+      x._1.setValue(x._2)
+      data = data ++ x._1.serialize()._1
+    }
+
+    data
+  }
+
+
+  //  todo: 일단 BasicType 만 지원하도록 구현한다.
+  def nomInteractionTypeDeserializer(s: NomSerializable, data: Array[Byte]): NomSerializable = {
+    var offset = 0
+    var lists = List.empty[NValueType]
+
+    val interaction = getInteractionTypeNOM(interactionTypes(s.getName())) zip s.getValues()
+
+    interaction foreach { x =>
       offset += x._2.deserialize(data, offset)
       lists = lists :+ x._2
     }
