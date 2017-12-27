@@ -49,14 +49,16 @@
   },
 
   "ComplexTypes" : {
-    "Complex1" : {
-      "basic1" : {
-        "type" : "intBE",
-        "size" : "1"
-      },
-      "enum1" : {
-        "type" : "Enum1",
-        "size" : "2"
+    "Position" : {
+      "xyz" : {
+        "type" : "double",
+        "size" : "3"
+      }
+    },
+    "IFF" : {
+      "code" : {
+        "type" : "wstring",
+        "size" : "3"
       }
     }
   },
@@ -76,7 +78,7 @@
         "indicator" : "1"
       },
       "position" : {
-        "type" : "double",
+        "type" : "Position",
         "size" : "1",
         "fixedLength" : "0",
         "indicator" : "2"
@@ -111,7 +113,7 @@
         "indicator" : "0"
       },
       "field2" : {
-        "type" : "Complex1",
+        "type" : "double",
         "size" : "1",
         "fixedLength" : "1",
         "indicator" : "2"
@@ -127,7 +129,7 @@
         "indicator" : "0"
       },
       "field22" : {
-        "type" : "Complex1",
+        "type" : "double",
         "size" : "1",
         "fixedLength" : "0",
         "indicator" : "0"
