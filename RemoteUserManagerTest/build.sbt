@@ -1,8 +1,14 @@
-name := "akka-quickstart-scala"
+name := "remoteDeploy"
 
 version := "1.0"
 
+organization := "lignex1.com"
+
 scalaVersion := "2.12.2"
+
+enablePlugins(JavaAppPackaging)
+
+scriptClasspath += "../conf"
 
 lazy val akkaVersion = "2.5.7"
 

@@ -226,16 +226,3 @@ object Proto_NOMParser extends Proto_Parser {
     s.setValues(lists: _*)
   }
 }
-
-
-object Proto_Parser_Test extends App {
-  println("JSON Test!")
-
-  Proto_NOMParser.parse("src/main/Resources/test.json")
-
-  println(Proto_NOMParser.basicTypes)
-  println(Proto_NOMParser.enumTypes)
-  println(Proto_NOMParser.complexTypes)
-  println(Proto_NOMParser.objectTypes)
-  println(Proto_NOMParser.interactionTypes)
-}
