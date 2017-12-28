@@ -28,29 +28,18 @@ case class Flight(id: Int, velocity: Double, position: Position) extends NomSeri
     case _id :: _velocity :: _positionX :: _positionY :: _positionZ :: Nil =>
       Flight(_id.toInt(), _velocity.toDouble(),
         Position(_positionX.toDouble(), _positionY.toDouble(), _positionZ.toDouble()))
-    case _ => println("[CLASS Flight] unknwon sequence... setValues() fail!"); Flight(0, 0.0, Position(0.0, 0.0, 0.0))
+    case _ => println("[CLASS Flight] unknwon sequence... setValues() fail!"); this
   }
 
   def this() { this(id = 0, velocity = 0.0, position = Position(0.0, 0.0, 0.0)) }
 }
-
-//case class Flight(id: Int, velocity: Double, position: Double) extends NomSerializable {
-//  override def getValues(): List[NValueType] = List(NInteger(id), NDouble(velocity), NDouble(position))
-//
-//  override def setValues(ns: NValueType*): NomSerializable = ns match {
-//    case _id :: _velocity :: _position :: Nil => Flight(_id.toInt(), _velocity.toDouble(), _position.toDouble())
-//    case _ => println("[CLASS Flight] unknwon sequence... setValues() fail!"); Flight(0, 0.0, 0.0)
-//  }
-//
-//  def this() { this(id = 0, velocity = 0.0, position = 0.0) }
-//}
 
 case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
   override def getValues(): List[NValueType] = List(NInteger(systemID), NInteger(subsystemID))
 
   override def setValues(ns: NValueType*): NomSerializable = ns match {
     case _systemID :: _subsystemID :: Nil => PowerOn(_systemID.toInt(), _subsystemID.toInt())
-    case _ => println("[CLASS PowerOn] unknwon sequence... setValues() fail!"); PowerOn(0, 0)
+    case _ => println("[CLASS PowerOn] unknwon sequence... setValues() fail!"); this
   }
 
   def this() { this(systemID = 0, subsystemID = 0) }
@@ -61,7 +50,7 @@ case class StartResume(isStart: Int) extends NomSerializable {
 
   override def setValues(ns: NValueType*): NomSerializable = ns match {
     case _isStart :: Nil => StartResume(_isStart.toInt())
-    case _ => println("[CLASS StartResume] unknwon sequence... setValues() fail!"); StartResume(0)
+    case _ => println("[CLASS StartResume] unknwon sequence... setValues() fail!"); this
   }
 
   //  todo: NomSerializable 에서 abstract method 로 선언해야 한다.

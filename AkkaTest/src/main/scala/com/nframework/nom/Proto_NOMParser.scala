@@ -1,7 +1,6 @@
 package com.nframework.nom
 
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
-
 import scala.util.parsing.json.JSON
 
 trait Proto_Parser {

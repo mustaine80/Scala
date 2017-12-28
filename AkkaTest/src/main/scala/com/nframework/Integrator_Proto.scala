@@ -7,7 +7,6 @@ import com.nframework.mec.MEC_Proto.PubSubInfoForwarding
 import com.nframework.mec._
 import com.nframework.nom.{NomSerializable, _}
 import com.typesafe.config.ConfigFactory
-
 import scala.concurrent.duration._
 
 
@@ -29,7 +28,7 @@ case class Flight(id: Int, velocity: Double, position: Position) extends NomSeri
     case _id :: _velocity :: _positionX :: _positionY :: _positionZ :: Nil =>
       Flight(_id.toInt(), _velocity.toDouble(),
         Position(_positionX.toDouble(), _positionY.toDouble(), _positionZ.toDouble()))
-    case _ => println("[CLASS Flight] unknwon sequence... setValues() fail!"); Flight(0, 0.0, Position(0.0, 0.0, 0.0))
+    case _ => println("[CLASS Flight] unknwon sequence... setValues() fail!"); this
   }
 
   def this() { this(id = 0, velocity = 0.0, position = Position(0.0, 0.0, 0.0)) }
@@ -41,7 +40,7 @@ case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
 
   override def setValues(ns: NValueType*): NomSerializable = ns match {
     case _systemID :: _subsystemID :: Nil => PowerOn(_systemID.toInt(), _subsystemID.toInt())
-    case _ => println("[CLASS PowerOn] unknwon sequence... setValues() fail!"); PowerOn(0, 0)
+    case _ => println("[CLASS PowerOn] unknwon sequence... setValues() fail!"); this
   }
 
   def this() { this(systemID = 0, subsystemID = 0) }
@@ -53,7 +52,7 @@ case class StartResume(isStart: Int) extends NomSerializable {
 
   override def setValues(ns: NValueType*): NomSerializable = ns match {
     case _isStart :: Nil => StartResume(_isStart.toInt())
-    case _ => println("[CLASS StartResume] unknwon sequence... setValues() fail!"); StartResume(0)
+    case _ => println("[CLASS StartResume] unknwon sequence... setValues() fail!"); this
   }
 
   def this() { this(isStart = 0) }

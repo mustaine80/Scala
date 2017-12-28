@@ -5,8 +5,6 @@ import com.nframework.mec.MEC_Proto.{MebAttatch, MebDetatch, PubSubInfo, PubSubI
 import com.nframework.mec._
 import com.nframework.nom.NMessage
 
-import scala.collection.mutable
-
 
 /*  MEB 는 MEC 를 통해 개별 manager NOM 에 대한 pub/sub 정보를 입수한다.
  *
@@ -14,25 +12,25 @@ import scala.collection.mutable
  *  pubs, subs 에 대한 컬렉션 타입을 immutuable 형태로 처리한다.
  */
 object PubSubTable {
-  var pubs = Map[String, Set[String]]()
-  var subs = Map[String, Set[String]]()
+  var pubs = Map.empty[String, Set[String]]
+  var subs = Map.empty[String, Set[String]]
 
-  def register(info: PubSubInfo): Unit = info.sharing match {
+  def register(info: PubSubInfo): (Map[String, Set[String]], Map[String, Set[String]]) = info.sharing match {
     case "Publish" =>
-      pubs = sharingAdder(pubs, info.msgName, info.managerName)
-      subs = sharingRemover(subs, info.msgName, info.managerName)
+      (sharingAdder(pubs, info.msgName, info.managerName),
+        sharingRemover(subs, info.msgName, info.managerName))
 
     case "Subscribe" =>
-      pubs = sharingRemover(pubs, info.msgName, info.managerName)
-      subs = sharingAdder(subs, info.msgName, info.managerName)
+      (sharingRemover(pubs, info.msgName, info.managerName),
+        sharingAdder(subs, info.msgName, info.managerName))
 
     case "PublishSubscribe" =>
-      pubs = sharingAdder(pubs, info.msgName, info.managerName)
-      subs = sharingAdder(subs, info.msgName, info.managerName)
+      (sharingAdder(pubs, info.msgName, info.managerName),
+        sharingAdder(subs, info.msgName, info.managerName))
 
     case "Neither" =>
-      pubs = sharingRemover(pubs, info.msgName, info.managerName)
-      subs = sharingRemover(subs, info.msgName, info.managerName)
+      (sharingRemover(pubs, info.msgName, info.managerName),
+        sharingRemover(subs, info.msgName, info.managerName))
   }
 
   def sharingAdder(items: Map[String, Set[String]], msgName: String, managerName: String): Map[String, Set[String]] = {
@@ -98,7 +96,7 @@ object PubSubTable {
 
 
 object MEB_Proto {
-  val mecMap = mutable.Map[String, ActorRef]()
+  var mecMap = Map[String, ActorRef]()
 }
 
 
@@ -111,7 +109,7 @@ class MEB_Proto extends Actor {
 
   def receive = {
     case MebAttatch(name) => {
-      MEB_Proto.mecMap(name) = sender()
+      MEB_Proto.mecMap = MEB_Proto.mecMap.updated(name, sender())
       sender() ! "MEB attatchment success"
     }
 
@@ -123,7 +121,11 @@ class MEB_Proto extends Actor {
 
     case m: PubSubInfo => {
       println("MEB Pub/Sub register, " + m)
-      PubSubTable.register(m)
+
+      val (pubs, subs) = PubSubTable.register(m)
+      PubSubTable.pubs = pubs
+      PubSubTable.subs = subs
+
       println("MEB pusbs. " + PubSubTable.pubs)
       println("MEB susbs. " + PubSubTable.subs)
     }

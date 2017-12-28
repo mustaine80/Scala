@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorRef, Props, Timers}
 import com.nframework.mec.MEC_Proto._
 import com.nframework.nom._
 
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 
 
@@ -51,10 +50,10 @@ case class RemoveMsg(msg: NMessage) extends PubSub
 class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
   extends Actor with Timers {
 
-  var discoveredNOMList = ListBuffer[DiscoverMsg]()
-  var reflectedNOMList = ListBuffer[(ReflectMsg)]()
-  var receivedNOMList = ListBuffer[RecvMsg]()
-  var removedNOMList = ListBuffer[RemoveMsg]()
+  var discoveredNOMList = List.empty[DiscoverMsg]
+  var reflectedNOMList = List.empty[(ReflectMsg)]
+  var receivedNOMList = List.empty[RecvMsg]
+  var removedNOMList = List.empty[RemoveMsg]
 
   init()
 
@@ -64,20 +63,12 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     println("MEC initialize ...")
   }
 
-  def msgPop[U <: PubSub](xs: ListBuffer[U], proc: U => Unit): ListBuffer[U] = {
-    xs match {
-      case ListBuffer() => xs
-      case x +: xsLeft =>
-        proc(x)
-        msgPop(xsLeft, proc)
-    }
-  }
-
-  def task(): Unit = {
-    discoveredNOMList = msgPop(discoveredNOMList, user ! _)
-    reflectedNOMList = msgPop(reflectedNOMList, user ! _)
-    receivedNOMList = msgPop(receivedNOMList, user ! _)
-    removedNOMList = msgPop(removedNOMList, user ! _)
+  //  msg pop 을 완료하기 전에는 다음 메시지를 처리하지 않기 때문에 굳이 buffer 를 사용하지 않아도 된다.
+  def msgPop(): Unit = {
+    discoveredNOMList = (List.empty[DiscoverMsg] /: discoveredNOMList){ case (x, y) => user ! y; Nil }
+    reflectedNOMList = (List.empty[ReflectMsg] /: reflectedNOMList){ case (x, y) => user ! y; Nil }
+    receivedNOMList = (List.empty[RecvMsg] /: receivedNOMList){ case (x, y) => user ! y; Nil }
+    removedNOMList = (List.empty[RemoveMsg] /: removedNOMList){ case (x, y) => user ! y; Nil }
   }
 
   def pubSubInfoForwarding: Unit = {
@@ -100,10 +91,10 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
 
     //  meb -> mec: data push
     //  mec 는 단순히 Pub/Sub msg 에 대한 stack 역할만을 수행한다.
-    case m: DiscoverMsg => discoveredNOMList += m
-    case m: ReflectMsg => reflectedNOMList += m
-    case m: RecvMsg => receivedNOMList += m
-    case m: RemoveMsg => removedNOMList += m
+    case m: DiscoverMsg => discoveredNOMList = m :: discoveredNOMList
+    case m: ReflectMsg => reflectedNOMList = m :: reflectedNOMList
+    case m: RecvMsg => receivedNOMList = m :: receivedNOMList
+    case m: RemoveMsg => removedNOMList = m :: removedNOMList
 
     //  MEB attach ack 처리
     case "MEB attatchment success" =>
@@ -125,7 +116,7 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
       user ! PubSubInfoForwarding(userName)
 
     //  MEC self pub/sub msg pop schedule
-    case Pop => task()
+    case Pop => msgPop()
 
     //  다중 JVM 환경에서 actor test 를 위한 코드
     case GetState(test) => {
