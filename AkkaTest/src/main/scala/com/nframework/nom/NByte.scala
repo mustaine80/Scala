@@ -1,5 +1,6 @@
 package com.nframework.nom
 
+
 class NByte(b: Byte) extends NValueType {
   var value: Byte = b
   

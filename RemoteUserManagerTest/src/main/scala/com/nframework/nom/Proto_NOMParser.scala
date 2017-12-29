@@ -1,6 +1,7 @@
 package com.nframework.nom
 
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
+
 import scala.util.parsing.json.JSON
 
 trait Proto_Parser {
@@ -16,15 +17,14 @@ trait Proto_Parser {
   *
   * !! 보조 생성자를 abstract method 로 선언할 수 없다. this 는 구현부를 가져야 하기 때문이다. trait mixin class 에서 구현해야 한다.
   */
-trait NomSerializable {
+trait NomSerializable extends Product {
   def getName(): String = getClass().getSimpleName   /// 반환값은 nom parser 에서 관리하는 object type key 로 사용
 
-  def getDefault = setValues(getValues(): _*)   /// User Manager 내 Discover map 에 등록하기 위한 dummy 객체 제공
+  def getValues(): List[NValueType] =  Proto_NOMParser.flatObj(this).map{ x => Proto_NOMParser.convertObj(x) }  /// extractor
 
-  def getValues(): List[NValueType] /// nom parser 에서 관리하는 object type 에 대한 mapping 정보 제공
-
-  def setValues(ns: NValueType*): NomSerializable   /// 역직렬화 시 객체 replication 을 위해 필요/*ㅊ,p6i:ㅓㅜ/*ㅖ:\0ㅡㅕㅜㅑㅏ*/*/
+  def setValues(ns: List[NValueType]): NomSerializable
 }
+
 
 
 /** Object 와 Interaction type 을 굳이 구분할 필요가 없다. type 의 문제가 아니라 운영의 문제이기 때문이다.
@@ -201,12 +201,11 @@ object Proto_NOMParser extends Proto_Parser {
     }
   }
 
-
   val nomObjectTypeSerializer = nomSerializer(objectTypes, _: NomSerializable)
   val nomObjectTypeDeserializer = nomDeserializer(objectTypes, _: NomSerializable, _: Array[Byte])
+
   val nomInteractionTypeSerializer = nomSerializer(interactionTypes, _: NomSerializable)
   val nomInteractionTypeDeserializer = nomDeserializer(interactionTypes, _: NomSerializable, _: Array[Byte])
-
 
   def nomSerializer(schema: Map[String, Object_Proto], s: NomSerializable): Array[Byte] = {
     val noms = getNOM(schema(s.getName())) zip s.getValues()
@@ -218,10 +217,46 @@ object Proto_NOMParser extends Proto_Parser {
 
   def nomDeserializer(schema: Map[String, Object_Proto], s: NomSerializable, data: Array[Byte]): NomSerializable = {
     var offset = 0
-    val noms = getNOM(schema(s.getName())) zip s.getValues()
-    val lists = noms.map { x => offset += x._2.deserialize(data, offset); x._2
-    }.foldRight(List.empty[NValueType])(_ :: _)
+    val lists = s.getValues().map { x => offset += x.deserialize(data, offset);x}
+      .foldRight(List.empty[NValueType])(_ :: _)
 
-    s.setValues(lists: _*)
+    s.setValues(lists)
   }
+
+  def convertObj(o: Any): NValueType = {  //  todo: NValueType 도 Nil 을 지원해야 할 듯
+    o match {
+      case m: Boolean => NBool(m)
+      case m: Byte => NByte(m)
+      case m: Char => NChar(m)
+      case m: Double => NDouble(m)
+      case m: Float => NFloat(m)
+      case m: Int => NInteger(m)
+      case m: Short => NShort(m)
+      case m: String => NString(m)
+      case _ => println("convertObj error!!! " + o); NBool(false)
+    }
+  }
+
+  def convertNValue(nom: NValueType): Any = {
+    nom match {
+      case m: NBool => nom.toShort()  //  abstract method toBool() need...
+      case m: NByte => nom.toByte()
+      case m: NChar => nom.toChar()
+      case m: NDouble => nom.toDouble()
+      case m: NFloat => nom.toFloat()
+      case m: NInteger => nom.toInt()
+      case m: NShort => nom.toShort()
+      case m: NString => nom.toString()
+
+      case _ => println("[NOM parser] nValueMatcher fail! unknown type : " + nom); Nil
+    }
+  }
+
+  def flatObj(nom: NomSerializable): List[Any] = {
+    nom.productIterator.map{
+      case m: NomSerializable => m.productIterator.toList
+      case m: Any => m :: Nil
+    }.toList.flatten
+  }
+
 }

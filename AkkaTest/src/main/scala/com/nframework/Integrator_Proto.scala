@@ -10,53 +10,41 @@ import com.typesafe.config.ConfigFactory
 import scala.concurrent.duration._
 
 
-case class Position(x: Double, y: Double, z: Double)
+//  !!  Enum/Complext type 에 대해 basic type 단위의 NValue 구성을 사용자가 작성한다.
+case class Position(x: Double, y: Double, z: Double) extends NomSerializable {
+  override def setValues(ns: List[NValueType]): NomSerializable =
+    this.copy(ns(0).toDouble(), ns(1).toDouble())
+
+  def this() { this(x = 0.0, y = 0.0, z = 0.0)}
+}
 
 
 /** Object/Interaction 단위의 자료 구조는 NomSerializable 을 Mix-in 해야 한다.
-  * override method 에 대한 NomSerializable trait 에 대한 구현 mix-in 은 getName() 만을 제공한다.
-  * getValues(), setValues(), 보조 생성자 메소드는 사용자가 구현한다.
+  * setValues(), 보조 생성자 메소드는 사용자가 구현한다.
   *
-  * !!  Enum/Complext type 에 대해서도 basic type 단위의 NValue 구성/해체를 사용자가 작성한다.
   */
-
 case class Flight(id: Int, velocity: Double, position: Position) extends NomSerializable {
-  override def getValues(): List[NValueType] =
-    List(NInteger(id), NDouble(velocity), NDouble(position.x), NDouble(position.y), NDouble(position.z))
-
-  override def setValues(ns: NValueType*): NomSerializable = ns match {
-    case _id :: _velocity :: _positionX :: _positionY :: _positionZ :: Nil =>
-      Flight(_id.toInt(), _velocity.toDouble(),
-        Position(_positionX.toDouble(), _positionY.toDouble(), _positionZ.toDouble()))
-    case _ => println("[CLASS Flight] unknwon sequence... setValues() fail!"); this
-  }
+  override def setValues(ns: List[NValueType]): NomSerializable =
+    this.copy(ns(0).toInt(), ns(1).toDouble(),
+      Position(ns(2).toDouble(), ns(3).toDouble(), ns(4).toDouble()))
 
   def this() { this(id = 0, velocity = 0.0, position = Position(0.0, 0.0, 0.0)) }
 }
 
 case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
-  override def getValues(): List[NValueType] =
-    List(NInteger(systemID), NInteger(subsystemID))
-
-  override def setValues(ns: NValueType*): NomSerializable = ns match {
-    case _systemID :: _subsystemID :: Nil => PowerOn(_systemID.toInt(), _subsystemID.toInt())
-    case _ => println("[CLASS PowerOn] unknwon sequence... setValues() fail!"); this
-  }
+  override def setValues(ns: List[NValueType]): NomSerializable =
+    this.copy(ns(0).toInt(), ns(1).toInt())
 
   def this() { this(systemID = 0, subsystemID = 0) }
 }
 
 case class StartResume(isStart: Int) extends NomSerializable {
-  override def getValues(): List[NValueType] =
-    List(NInteger(isStart))
-
-  override def setValues(ns: NValueType*): NomSerializable = ns match {
-    case _isStart :: Nil => StartResume(_isStart.toInt())
-    case _ => println("[CLASS StartResume] unknwon sequence... setValues() fail!"); this
-  }
+  override def setValues(ns: List[NValueType]): NomSerializable =
+    this.copy(ns(0).toInt())
 
   def this() { this(isStart = 0) }
 }
+
 
 object SimulationManager {
   private object TickKey
@@ -113,10 +101,9 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
   }
 
   //  msg name 으로 기본 객체를 반환한다.
-  def getNOMTemplate(msgName: String): NomSerializable = {
-    val nom = Class.forName("com.nframework." + msgName).newInstance()
-    nom.asInstanceOf[NomSerializable].getDefault
-  }
+  def getNOMTemplate(msgName: String): NomSerializable =
+    Class.forName("com.nframework." + msgName).newInstance().asInstanceOf[NomSerializable]
+
 
 
   def receive = {
