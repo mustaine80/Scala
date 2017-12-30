@@ -78,7 +78,7 @@
         "indicator" : "1"
       },
       "position" : {
-        "type" : "double",
+        "type" : "Position",
         "size" : "1",
         "fixedLength" : "0",
         "indicator" : "2"

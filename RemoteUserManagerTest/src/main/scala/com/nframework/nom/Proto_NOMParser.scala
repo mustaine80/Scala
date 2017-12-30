@@ -228,7 +228,7 @@ object Proto_NOMParser extends Proto_Parser {
         case m: NomSerializable =>
           val (obj, other) = lists.splitAt(m.productArity)
           lists = other
-          makeNomSerializable(m.getName(), lists.toList)
+          makeNomSerializable(m.getName(), obj.toList).asInstanceOf[AnyRef]
         case m: Any => lists.remove(0)
       }
     }
@@ -236,10 +236,8 @@ object Proto_NOMParser extends Proto_Parser {
     makeNomSerializable(s.getName(), args)
   }
 
-  //  todo: 가변 인자가 안맞아서 실패하는 경우가 있다. 원인을 확인해야 한다. (wrong number of arguments)
   def makeNomSerializable(name: String, args: List[AnyRef]): NomSerializable = {
     val constructor = Class.forName("com.nframework." + name).getConstructors()(0)
-//    println("makeNomSerializable.... args size : " + args.size + "  , " + args)
     constructor.newInstance(args:_*).asInstanceOf[NomSerializable]
   }
 

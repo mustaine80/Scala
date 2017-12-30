@@ -15,15 +15,9 @@ case class Position(x: Double, y: Double, z: Double) extends NomSerializable {
   def this() { this(x = 0.0, y = 0.0, z = 0.0)}
 }
 
-
-/** Object/Interaction 단위의 자료 구조는 NomSerializable 을 Mix-in 해야 한다.
-  * setValues(), 보조 생성자 메소드는 사용자가 구현한다.
-  *
-  */
-case class Flight(id: Int, velocity: Double, position: Double) extends NomSerializable {
-  def this() { this(id = 0, velocity = 0.0, position = 0.0) }
+case class Flight(id: Int, velocity: Double, position: Position) extends NomSerializable {
+  def this() { this(id = 0, velocity = 0.0, position = Position(0.0, 0.0, 0.0)) }
 }
-
 
 case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
   def this() { this(systemID = 0, subsystemID = 0) }
@@ -73,11 +67,11 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
     if (updateValue < 1000) {
       mec ! UpdateMsg(NMessage(
         "Flight", 1, Proto_NOMParser.nomObjectTypeSerializer(Flight(1, updateValue * 10.0,
-          updateValue * 50.0))))
+          Position(updateValue * 50.0, updateValue * 30.0, updateValue * 10.0)))))
 
       mec ! UpdateMsg(NMessage(
         "Flight", 2, Proto_NOMParser.nomObjectTypeSerializer(Flight(2, updateValue * 20.0,
-          updateValue * 70.0))))
+          Position(updateValue * 100.0, updateValue * 50.0, updateValue * 20.0)))))
     }
 
     if (updateValue == 1000) {
