@@ -12,9 +12,6 @@ import scala.concurrent.duration._
 
 //  !!  Enum/Complext type 에 대해 basic type 단위의 NValue 구성을 사용자가 작성한다.
 case class Position(x: Double, y: Double, z: Double) extends NomSerializable {
-  override def setValues(ns: List[NValueType]): NomSerializable =
-    this.copy(ns(0).toDouble(), ns(1).toDouble())
-
   def this() { this(x = 0.0, y = 0.0, z = 0.0)}
 }
 
@@ -23,25 +20,16 @@ case class Position(x: Double, y: Double, z: Double) extends NomSerializable {
   * setValues(), 보조 생성자 메소드는 사용자가 구현한다.
   *
   */
-case class Flight(id: Int, velocity: Double, position: Position) extends NomSerializable {
-  override def setValues(ns: List[NValueType]): NomSerializable =
-    this.copy(ns(0).toInt(), ns(1).toDouble(),
-      Position(ns(2).toDouble(), ns(3).toDouble(), ns(4).toDouble()))
-
-  def this() { this(id = 0, velocity = 0.0, position = Position(0.0, 0.0, 0.0)) }
+case class Flight(id: Int, velocity: Double, position: Double) extends NomSerializable {
+  def this() { this(id = 0, velocity = 0.0, position = 0.0) }
 }
 
-case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
-  override def setValues(ns: List[NValueType]): NomSerializable =
-    this.copy(ns(0).toInt(), ns(1).toInt())
 
+case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
   def this() { this(systemID = 0, subsystemID = 0) }
 }
 
 case class StartResume(isStart: Int) extends NomSerializable {
-  override def setValues(ns: List[NValueType]): NomSerializable =
-    this.copy(ns(0).toInt())
-
   def this() { this(isStart = 0) }
 }
 

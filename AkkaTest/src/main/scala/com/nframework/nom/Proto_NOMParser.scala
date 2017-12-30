@@ -2,6 +2,7 @@ package com.nframework.nom
 
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
 
+import scala.collection.mutable.ListBuffer
 import scala.util.parsing.json.JSON
 
 trait Proto_Parser {
@@ -21,8 +22,6 @@ trait NomSerializable extends Product {
   def getName(): String = getClass().getSimpleName   /// 반환값은 nom parser 에서 관리하는 object type key 로 사용
 
   def getValues(): List[NValueType] =  Proto_NOMParser.flatObj(this).map{ x => Proto_NOMParser.convertObj(x) }  /// extractor
-
-  def setValues(ns: List[NValueType]): NomSerializable
 }
 
 
@@ -217,10 +216,32 @@ object Proto_NOMParser extends Proto_Parser {
 
   def nomDeserializer(schema: Map[String, Object_Proto], s: NomSerializable, data: Array[Byte]): NomSerializable = {
     var offset = 0
-    val lists = s.getValues().map { x => offset += x.deserialize(data, offset);x}
-      .foldRight(List.empty[NValueType])(_ :: _)
+    var lists = ListBuffer.empty[AnyRef]
 
-    s.setValues(lists)
+    s.getValues().foreach { x =>
+      offset += x.deserialize(data, offset)
+      lists += convertNValue(x).asInstanceOf[AnyRef]
+    }
+
+    val args = s.productIterator.toList.map{ x =>
+      x match {
+        case m: NomSerializable =>
+          val (obj, other) = lists.splitAt(m.productArity)
+          lists = other
+          makeNomSerializable(m.getName(), lists.toList)
+        case m: Any => lists.remove(0)
+      }
+    }
+
+    makeNomSerializable(s.getName(), args)
+  }
+
+  //  todo: 가변 인자가 안맞아서 실패하는 경우가 있다. (wrong number of arguments)
+  //  complext type 을 내포하는 경우(Position) 문제가 생기는 것 같다.
+  def makeNomSerializable(name: String, args: List[AnyRef]): NomSerializable = {
+    val constructor = Class.forName("com.nframework." + name).getConstructors()(0)
+//    println("makeNomSerializable.... args size : " + args.size + "  , " + args)
+    constructor.newInstance(args:_*).asInstanceOf[NomSerializable]
   }
 
   def convertObj(o: Any): NValueType = {  //  todo: NValueType 도 Nil 을 지원해야 할 듯
