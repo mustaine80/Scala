@@ -98,7 +98,8 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
     case ReflectMsg(msg) =>
       println("[Control Manager] Reflect msg received. " + msg)
       val obj = ControlManager.DiscoverMap(msg.name)
-        .updated(msg.objID, Proto_NOMParser.nomObjectTypeDeserializer(getNOMTemplate(msg.name), msg.data))
+        .updated(msg.objID, Proto_NOMParser
+          .nomObjectTypeDeserializer(ControlManager.DiscoverMap(msg.name)(msg.objID), msg.data))
 
       ControlManager.DiscoverMap = ControlManager.DiscoverMap ++ Map(msg.name -> obj)
       println(obj)

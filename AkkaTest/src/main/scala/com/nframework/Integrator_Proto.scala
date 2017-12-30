@@ -103,7 +103,8 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
     case ReflectMsg(msg) =>
       println("[Simulation Manager] Reflect msg received. " + msg)
       val obj = SimulationManager.DiscoverMap(msg.name)
-        .updated(msg.objID, Proto_NOMParser.nomObjectTypeDeserializer(getNOMTemplate(msg.name), msg.data))
+        .updated(msg.objID, Proto_NOMParser
+          .nomObjectTypeDeserializer(SimulationManager.DiscoverMap(msg.name)(msg.objID), msg.data))
 
       SimulationManager.DiscoverMap = SimulationManager.DiscoverMap ++ Map(msg.name -> obj)
       println(obj)
