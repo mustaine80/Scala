@@ -10,22 +10,14 @@ import com.typesafe.config.ConfigFactory
 import scala.concurrent.duration._
 
 
-//  !!  Enum/Complext type 에 대해 basic type 단위의 NValue 구성을 사용자가 작성한다.
-case class Position(x: Double, y: Double, z: Double) extends NomSerializable {
-  def this() { this(x = 0.0, y = 0.0, z = 0.0)}
-}
+case class Position(x: Double, y: Double, z: Double) extends NomSerializable
 
-case class Flight(id: Int, velocity: Double, position: Position) extends NomSerializable {
-  def this() { this(id = 0, velocity = 0.0, position = Position(0.0, 0.0, 0.0)) }
-}
+case class Flight(id: Int, velocity: Double, position: Position) extends NomSerializable
 
-case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable {
-  def this() { this(systemID = 0, subsystemID = 0) }
-}
+case class PowerOn(systemID: Int, subsystemID: Int) extends NomSerializable
 
-case class StartResume(isStart: Int) extends NomSerializable {
-  def this() { this(isStart = 0) }
-}
+case class StartResume(isStart: Int) extends NomSerializable
+
 
 object ControlManager {
   private object TickKey
@@ -76,21 +68,16 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
     updateValue += 1
   }
 
-  //  msg name 으로 기본 객체를 반환한다.
-  def getNOMTemplate(msgName: String): NomSerializable = {
-    val nom = Class.forName("com.nframework." + msgName).newInstance()
-    nom.asInstanceOf[NomSerializable]
-  }
-
 
   def receive = {
     //  mec -> user
-    //  discover, reflect, remove 를 위한 case class 를 수작업으로 매칭하는 것은 receive 함수가 벌크해지기 때문에 추출한다.
+    //  obj id 별 객체를 생성할 필요가 굳이 없을것 같긴한데... 추후에 불변객체 생성 방식이 아닌 객체 변경 형태로 변경될 것을
+    //  감안하여 현 상태를 유지한다.
     case DiscoverMsg(msg) =>
       println("[Control Manager] discover msg received. " + msg)
       val obj = ControlManager.DiscoverMap.get(msg.name) match {
-        case Some(x) => Map(msg.name -> (x ++ Map(msg.objID -> getNOMTemplate(msg.name))))
-        case None => Map(msg.name -> Map(msg.objID -> getNOMTemplate(msg.name)))
+        case Some(x) => Map(msg.name -> (x ++ Map(msg.objID -> Proto_NOMParser.getDefaultNOMSerializable(msg.name))))
+        case None => Map(msg.name -> Map(msg.objID -> Proto_NOMParser.getDefaultNOMSerializable(msg.name)))
       }
 
       ControlManager.DiscoverMap = ControlManager.DiscoverMap ++ obj
@@ -106,7 +93,7 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
 
     case RecvMsg(msg) =>
       println("[Control Manager] Recv msg received. " + msg)
-      val event = Proto_NOMParser.nomInteractionTypeDeserializer(getNOMTemplate(msg.name), msg.data)
+      val event = Proto_NOMParser.nomInteractionTypeDeserializer(Proto_NOMParser.getDefaultNOMSerializable(msg.name), msg.data)
       println(event)
 
     case RemoveMsg(msg) =>

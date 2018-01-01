@@ -52,13 +52,15 @@
     "Position" : {
       "xyz" : {
         "type" : "double",
-        "size" : "3"
+        "size" : "3",
+        "indicator" : "0"
       }
     },
     "IFF" : {
       "code" : {
         "type" : "wstring",
-        "size" : "3"
+        "size" : "3",
+        "indicator" : "0"
       }
     }
   },
@@ -106,17 +108,11 @@
 
   "Interactions" : {
     "StartResume" : {
-      "field1" : {
+      "isStart" : {
         "type" : "int",
         "size" : "1",
         "fixedLength" : "0",
         "indicator" : "0"
-      },
-      "field2" : {
-        "type" : "double",
-        "size" : "1",
-        "fixedLength" : "1",
-        "indicator" : "2"
       },
       "sharing" : "PublishSubscribe",
       "alignment" : "none"
