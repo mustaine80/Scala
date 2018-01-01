@@ -69,7 +69,7 @@ object PubSubTable {
     case RegisterMsg(msgName, objID, userName) =>
       if (pubs.contains(msgName))
         subs(msgName).filter(_ != userName).foreach(MEB_Proto.mecMap(_)
-          ! DiscoverMsg(NMessage(msgName, objID, Array[Byte](0))))    /// Discover 정보는 msgName 만 사용한다.
+          ! DiscoverMsg(NMessage(msgName, Array[Byte](0))))    /// Discover 정보는 msgName 만 사용한다.
       else
         println("[MEB] RegisterMsg error. Sharing attribute is not 'Publish'. msg : " + msgName)
 

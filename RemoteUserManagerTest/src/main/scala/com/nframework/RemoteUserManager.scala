@@ -1,7 +1,9 @@
 package com.nframework
 
 import akka.actor.{Actor, ActorIdentity, ActorRef, ActorSelection, ActorSystem, Identify, Props, Timers}
-import com.nframework.ControlManager.{TickKey, Update}
+import com.nframework.Serializer._
+import com.nframework.Serializer.NomSerializer._
+import com.nframework.ControlManager.{DiscoverMap, TickKey, Update}
 import com.nframework.mec.MEC_Proto.PubSubInfoForwarding
 import com.nframework.mec._
 import com.nframework.nom._
@@ -23,7 +25,7 @@ object ControlManager {
   private object TickKey
   private object Update
 
-  var DiscoverMap = Map.empty[String, Map[Int, NomSerializable]]
+  var DiscoverMap = Map.empty[String, (NomSerializable, Int /*reference count*/ )]
 }
 
 
@@ -44,7 +46,7 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
 
     */
   def doControl(): Unit = {
-    mec ! SendMsg(NMessage("StartResume", 0, Proto_NOMParser.nomInteractionTypeSerializer(StartResume(20000))))
+    mec ! SendMsg(NMessage("StartResume", nomInteractionTypeSerializer(StartResume(20000))))
 
     Thread.sleep(100)  /// Simulation Manager 가 start event 처리를 하기 위한 시간 확보
 
@@ -56,13 +58,13 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
 
   def update(): Unit = {
     if (updateValue < 1000) {
-      mec ! UpdateMsg(NMessage("PowerOn", 1, Proto_NOMParser.nomObjectTypeSerializer(PowerOn(1, updateValue + 1))))
-      mec ! UpdateMsg(NMessage("PowerOn", 2, Proto_NOMParser.nomObjectTypeSerializer(PowerOn(2, updateValue + 10001))))
+      mec ! UpdateMsg(NMessage("PowerOn", nomObjectTypeSerializer(PowerOn(1, updateValue + 1))))
+      mec ! UpdateMsg(NMessage("PowerOn", nomObjectTypeSerializer(PowerOn(2, updateValue + 10001))))
     }
 
     if (updateValue == 1000) {
-      mec ! DeleteMsg(NMessage("PowerOn", 1, Array[Byte]()))
-      mec ! DeleteMsg(NMessage("PowerOn", 2, Array[Byte]()))
+      mec ! DeleteMsg(NMessage("PowerOn", Array[Byte]()))
+      mec ! DeleteMsg(NMessage("PowerOn", Array[Byte]()))
     }
 
     updateValue += 1
@@ -71,40 +73,48 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
 
   def receive = {
     //  mec -> user
-    //  obj id 별 객체를 생성할 필요가 굳이 없을것 같긴한데... 추후에 불변객체 생성 방식이 아닌 객체 변경 형태로 변경될 것을
-    //  감안하여 현 상태를 유지한다.
+
+    //  Discover를 위해 객체 생성을 담당하는 객체(User Manager)에서 NOM schema 를 이용하여 인스턴스를 일관성 있게 생성해야 한다.
+
+    //  실제 통신에 사용되는 object instance 가 다수일지라도 대응하는 object type 은 하나이며, 객체 간 구분은 해당 객체 class 에서
+    //  필요로 하는 ID 를 정의해야 한다.
     case DiscoverMsg(msg) =>
       println("[Control Manager] discover msg received. " + msg)
-      val obj = ControlManager.DiscoverMap.get(msg.name) match {
-        case Some(x) => Map(msg.name -> (x ++ Map(msg.objID -> Proto_NOMParser.getDefaultNOMSerializable(msg.name))))
-        case None => Map(msg.name -> Map(msg.objID -> Proto_NOMParser.getDefaultNOMSerializable(msg.name)))
+      val obj = DiscoverMap.get(msg.name) match {
+        case Some(x) => Map(msg.name -> (x._1, x._2 + 1))
+        case None => Map(msg.name -> (getDefaultNOMSerializable(msg.name), 1))
       }
+      DiscoverMap = DiscoverMap ++ obj
 
-      ControlManager.DiscoverMap = ControlManager.DiscoverMap ++ obj
 
     case ReflectMsg(msg) =>
       println("[Control Manager] Reflect msg received. " + msg)
-      val obj = ControlManager.DiscoverMap(msg.name)
-        .updated(msg.objID, Proto_NOMParser
-          .nomObjectTypeDeserializer(ControlManager.DiscoverMap(msg.name)(msg.objID), msg.data))
-
-      ControlManager.DiscoverMap = ControlManager.DiscoverMap ++ Map(msg.name -> obj)
+      val obj = nomObjectTypeDeserializer(DiscoverMap(msg.name)._1, msg.data)
       println(obj)
+
 
     case RecvMsg(msg) =>
       println("[Control Manager] Recv msg received. " + msg)
-      val event = Proto_NOMParser.nomInteractionTypeDeserializer(Proto_NOMParser.getDefaultNOMSerializable(msg.name), msg.data)
+      val event = nomInteractionTypeDeserializer(getDefaultNOMSerializable(msg.name), msg.data)
       println(event)
+
 
     case RemoveMsg(msg) =>
       println("[Control Manager] Remove msg received. " + msg)
-      val m = ControlManager.DiscoverMap(msg.name) - msg.objID
-      ControlManager.DiscoverMap = ControlManager.DiscoverMap.updated(msg.name, m)
+      val obj = DiscoverMap.get(msg.name) match {
+        case Some(x) => Map(msg.name -> (x._1, x._2 - 1))
+        case None => println("No Discovered msg. RemoveMsg request fail! msg name => " + msg.name); Nil
+      }
+      DiscoverMap = DiscoverMap ++ obj
+      DiscoverMap = DiscoverMap.filter(_._2._2 != 0)
       println(ControlManager.DiscoverMap)
+
 
     case Update => update()
 
+
     case PubSubInfoForwarding(userName) => init()
+
 
     case _ => println("[Control Manager] unknown Pub/Sub message. actor receive function fail!")
   }

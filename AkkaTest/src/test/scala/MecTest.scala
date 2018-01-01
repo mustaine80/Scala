@@ -12,7 +12,7 @@ class MecTest extends TestKit(ActorSystem("testSystem"))
   with MustMatchers   /// easy reading assertion support
   with StopSystemAfterAll {
 
-  val dummy = NMessage("test", 0, Array[Byte](0))
+  val dummy = NMessage("test", Array[Byte](0))
 
   "MEC Actor" must {
     val props = MEC_Proto.props(testActor)
