@@ -3,7 +3,6 @@ package com.nframework.meb
 import akka.actor.{Actor, ActorRef}
 import com.nframework.mec.MEC_Proto.{MebAttatch, MebDetatch, PubSubInfo, PubSubInfoForwarding}
 import com.nframework.mec._
-import com.nframework.nom.NMessage
 
 
 /*  MEB 는 MEC 를 통해 개별 manager NOM 에 대한 pub/sub 정보를 입수한다.
@@ -66,12 +65,15 @@ object PubSubTable {
    *
    */
   def notifyAll(ps: PubSub, publisher: ActorRef): Unit = ps match {
-    case RegisterMsg(msgName, objID, userName) =>
-      if (pubs.contains(msgName))
-        subs(msgName).filter(_ != userName).foreach(MEB_Proto.mecMap(_)
-          ! DiscoverMsg(NMessage(msgName, Array[Byte](0))))    /// Discover 정보는 msgName 만 사용한다.
-      else
-        println("[MEB] RegisterMsg error. Sharing attribute is not 'Publish'. msg : " + msgName)
+    case RegisterMsg(msg) =>
+      if (pubs.contains(msg.name)) {
+        subs(msg.name).foreach { x =>
+          val subscriber = MEB_Proto.mecMap(x)
+          if (subscriber != publisher)
+            subscriber ! DiscoverMsg(msg)
+        }
+      } else
+        println("[MEB] RegisterMsg error. Sharing attribute is not 'Publish'. msg : " + msg.name)
 
     case UpdateMsg(msg) =>
       subs(msg.name).foreach{ x =>

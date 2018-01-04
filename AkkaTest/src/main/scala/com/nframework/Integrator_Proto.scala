@@ -1,9 +1,9 @@
 package com.nframework
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Timers}
-import com.nframework.Serializer._
 import com.nframework.Serializer.NomSerializer._
-import com.nframework.SimulationManager.{DiscoverMap, TickKey, Update}
+import com.nframework.Serializer._
+import com.nframework.SimulationManager.{DiscoverMap, TickKey, Update, UpdateMap}
 import com.nframework.meb.MEB_Proto
 import com.nframework.mec.MEC_Proto.PubSubInfoForwarding
 import com.nframework.mec._
@@ -26,8 +26,9 @@ object SimulationManager {
   private object TickKey
   private object Update
 
-  var DiscoverMap = Map.empty[String, (NomSerializable, Int /*reference count*/ )]
-
+  //  multi-Map 을 사용하는 것보다 Tuple key 를 사용하는 것이 가독성에 더 유리할 것으로 판단되어 변경한다.
+  var DiscoverMap = Map.empty[(String, Int), NomSerializable]
+  var UpdateMap = Map.empty[(String, Int), NomSerializable]
 }
 
 
@@ -36,39 +37,43 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
   val mec = context.actorOf(Props(new MEC_Proto("Simulation Manager", context.self, meb)), "MEC_SimulationManager")
 
   //  test 용 임시 변수
-  var updateValue: Int = 0
+  var updateValue: Int = 1
 
   def init(): Unit = {
     println("simulation manager initialize ...")
   }
 
-
   /** test code
 
    */
   def doFlight(): Unit = {
+    val flight1 = Flight(1, 0.0, Position(0.0, 0.0, 0.0))
+    val flight2 = Flight(2, 0.0, Position(0.0, 0.0, 0.0))
 
-    mec ! RegisterMsg("Flight", 1, managerName)
-    mec ! RegisterMsg("Flight", 2, managerName)
+    RegisterMessage(flight1, 1)
+    RegisterMessage(flight1, 2)
+
+    println("UpdateMap --> " + UpdateMap)
 
     timers.startPeriodicTimer(TickKey, Update, 10.millisecond)
   }
 
-  //  todo: update 시 full object 가 아닌 실제 변경이 일어난 부분 정보만 전달할 수 있는 기능이 필요하다. (32bit flag)
+
+  //  update 시 full object 가 아닌 실제 변경이 일어난 부분 정보만 전달한다. (32bit flag)
   def update(): Unit = {
     if (updateValue < 1000) {
-      mec ! UpdateMsg(NMessage(
-        "Flight", nomObjectTypeSerializer(Flight(1, updateValue * 10.0,
-          Position(updateValue * 50.0, updateValue * 30.0, updateValue * 10.0)))))
+      val flight1 = Flight(1, updateValue * 10.0, Position(updateValue * 50.0, updateValue * 30.0, updateValue * 10.0))
+      val flight2 = Flight(2, updateValue * 20.0, Position(updateValue * 100.0, updateValue * 50.0, updateValue * 20.0))
 
-      mec ! UpdateMsg(NMessage(
-        "Flight", nomObjectTypeSerializer(Flight(2, updateValue * 20.0,
-          Position(updateValue * 100.0, updateValue * 50.0, updateValue * 20.0)))))
+      UpadteMessage(flight1, 1, true) /// partial serialization
+      UpadteMessage(flight1, 2)
     }
 
     if (updateValue == 1000) {
-      mec ! DeleteMsg(NMessage("Flight", Array[Byte]()))
-      mec ! DeleteMsg(NMessage("Flight", Array[Byte]()))
+      DeleteMessage("Flight", 1)
+      DeleteMessage("Flight", 2)
+
+      println("UpdateMap --> " + UpdateMap)
     }
 
     updateValue += 1
@@ -77,52 +82,56 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
 
   def receive = {
     //  mec -> user
-
     //  Discover를 위해 객체 생성을 담당하는 객체(User Manager)에서 NOM schema 를 이용하여 인스턴스를 일관성 있게 생성해야 한다.
-
-    //  실제 통신에 사용되는 object instance 가 다수일지라도 대응하는 object type 은 하나이며, 객체 간 구분은 해당 객체 class 에서
-    //  필요로 하는 ID 를 정의해야 한다.
     case DiscoverMsg(msg) =>
       println("[Simulation Manager] discover msg received. " + msg)
-      val obj = DiscoverMap.get(msg.name) match {
-        case Some(x) => Map(msg.name -> (x._1, x._2 + 1))
-        case None => Map(msg.name -> (getDefaultNOMSerializable(msg.name), 1))
-      }
-      DiscoverMap = DiscoverMap ++ obj
-
+      DiscoverMap = DiscoverMap.updated((msg.name, msg.objID), nomDeserializer(getDefaultNOMSerializable(msg.name), msg.data))
+      println("DiscoverMap: " + DiscoverMap)
 
     case ReflectMsg(msg) =>
       println("[Simulation Manager] Reflect msg received. " + msg)
-      val obj = nomObjectTypeDeserializer(DiscoverMap(msg.name)._1, msg.data)
-      println(obj)
-
+      DiscoverMap = DiscoverMap.updated((msg.name, msg.objID), nomDeserializer(DiscoverMap(msg.name, msg.objID), msg.data))
+      println("DiscoverMap: " + DiscoverMap)
 
     case RecvMsg(msg) =>
       println("[Simulation Manager] Recv msg received. " + msg)
-      val event = nomInteractionTypeDeserializer(getDefaultNOMSerializable(msg.name), msg.data)
+      val event = nomDeserializer(getDefaultNOMSerializable(msg.name), msg.data)
       println(event)
       //  test code
       if (msg.name == "StartResume") doFlight()
 
-
     case RemoveMsg(msg) =>
       println("[Simulation Manager] Remove msg received. " + msg)
-      val obj = DiscoverMap.get(msg.name) match {
-        case Some(x) => Map(msg.name -> (x._1, x._2 - 1))
-        case None => println("No Discovered msg. RemoveMsg request fail! msg name => " + msg.name); Nil
-      }
-      DiscoverMap = DiscoverMap ++ obj
-      DiscoverMap = DiscoverMap.filter(_._2._2 != 0)
-      println(DiscoverMap)
-
+      DiscoverMap = DiscoverMap - ((msg.name, msg.objID))
+      println("DiscoverMap: " + DiscoverMap)
 
     case Update => update()
 
-
     case PubSubInfoForwarding(userName) => init()
 
-
     case _ => println("[Simulation Manager] unknown Pub/Sub message. actor receive function fail!")
+  }
+
+  //  Wrapper
+  def RegisterMessage(s: NomSerializable, id: Int): Unit = {
+    mec ! RegisterMsg(NMessage(s.getName(), id, nomObjectTypeSerializer(s, 0xFFFFFFFF)))
+    UpdateMap = UpdateMap.updated((s.getName(), id), s)
+  }
+
+  //  default parameter 는 부분 직렬화를 지원한다.
+  def UpadteMessage(s: NomSerializable, objId: Int, partialSerialization: Boolean = true): Unit = {
+    if (partialSerialization == true) {
+      val updateFlag = compareObject(UpdateMap(s.getName(), objId), s)
+      mec ! UpdateMsg(NMessage(s.getName(), objId, nomObjectTypeSerializer(s, updateFlag)))
+      UpdateMap = UpdateMap.updated((s.getName(), objId), s)
+    }
+    else
+      mec ! UpdateMsg(NMessage(s.getName(), objId, nomObjectTypeSerializer(s, 0xFFFFFFFF)))
+  }
+
+  def DeleteMessage(msgName: String, objId: Int): Unit = {
+    mec ! DeleteMsg(NMessage(msgName, objId, Array[Byte]()))
+    UpdateMap = UpdateMap - ((msgName, objId))
   }
 }
 

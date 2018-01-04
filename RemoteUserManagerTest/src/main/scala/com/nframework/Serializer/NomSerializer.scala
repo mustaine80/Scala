@@ -7,8 +7,6 @@ import scala.collection.mutable.ListBuffer
 
 /** nom schema 를 통한 자동 직렬화를 지원
   * !! getName 반환값을 NOM schema 내 object name 을 클래스명과 동일하게 작성해야 한다.
-  *
-  * !! 보조 생성자를 abstract method 로 선언할 수 없다. this 는 구현부를 가져야 하기 때문이다. trait mixin class 에서 구현해야 한다.
   */
 trait NomSerializable extends Product {
   import NomSerializer._
@@ -21,29 +19,44 @@ trait NomSerializable extends Product {
 
 // !  변경된 데이터에 대해 기존 인스턴스 정보를 변경하지 않고 불변형의 신규 인스턴스를 생성하여 대체하는 전략을 사용한다.
 object NomSerializer {
-  val nomObjectTypeSerializer = nomSerializer(objectTypes, _: NomSerializable)
-  val nomObjectTypeDeserializer = nomDeserializer(objectTypes, _: NomSerializable, _: Array[Byte])
-
-  val nomInteractionTypeSerializer = nomSerializer(interactionTypes, _: NomSerializable)
-  val nomInteractionTypeDeserializer = nomDeserializer(interactionTypes, _: NomSerializable, _: Array[Byte])
+  val nomObjectTypeSerializer = nomSerializer(objectTypes, _: NomSerializable, _: Int)
+  val nomInteractionTypeSerializer = nomSerializer(interactionTypes, _: NomSerializable, 0xFFFFFFFF)
 
 
-  def nomSerializer(schema: Map[String, Object_Proto], s: NomSerializable): Array[Byte] = {
+  def nomSerializer(schema: Map[String, Object_Proto], s: NomSerializable, updateFlag: Int): Array[Byte] = {
     val noms = getNOM(schema(s.getName())) zip s.getValues()
+    var marker = 1
+
     noms.map{ x =>
-      x._1.setValue(x._2)
-      x._1.serialize()._1
-    }.foldRight(Array.empty[Byte])(_ ++ _)
+      if ((updateFlag & marker) == marker) {
+        marker = marker << 1
+        x._1.setValue(x._2)
+        x._1.serialize()._1
+      }
+      else {
+        marker = marker << 1
+        Array.empty[Byte]
+      }
+    }.foldLeft(NInteger(updateFlag).serialize()._1)(_ ++ _)
   }
 
 
-  def nomDeserializer(schema: Map[String, Object_Proto], s: NomSerializable, data: Array[Byte]): NomSerializable = {
+  def nomDeserializer(s: NomSerializable, data: Array[Byte]): NomSerializable = {
     var offset = 0
     var lists = ListBuffer.empty[AnyRef]
+    val bar = NInteger(0)
+
+    offset += bar.deserialize(data, offset)
+    var updateFlag = convertNValue(bar).asInstanceOf[Int]
+
+    var marker = 1
 
     s.getValues().foreach { x =>
-      offset += x.deserialize(data, offset)
+      if ((updateFlag & marker) == marker)
+        offset += x.deserialize(data, offset)
+
       lists += convertNValue(x).asInstanceOf[AnyRef]
+      marker = marker << 1
     }
 
     val args = s.productIterator.toList.map {
@@ -163,6 +176,22 @@ object NomSerializer {
     }}.toList.flatten
 
     makeNomSerializable(msgName, args)
+  }
+
+
+  //  update object 의 실제 변경된 필드를 Marking 하는 flag 를 반환한다.
+  def compareObject(old: NomSerializable, now: NomSerializable): Int = {
+    var updateFlag = 0
+    var marker = 1
+
+    val bar = old.getValues().map{x => convertNValue(x)} zip now.getValues().map{x => convertNValue(x)}
+    bar.foreach{ x =>
+      if (x._1 != x._2) updateFlag += marker
+
+      marker = marker << 1
+    }
+
+    updateFlag
   }
 
 

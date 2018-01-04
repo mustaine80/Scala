@@ -34,7 +34,7 @@ object MEC_Proto {
 abstract class PubSub
 
 /// msg: mec -> meb
-case class RegisterMsg(msgName: String, objID: Int, userName: String) extends PubSub
+case class RegisterMsg(msg: NMessage) extends PubSub
 case class UpdateMsg(msg: NMessage) extends PubSub
 case class SendMsg(msg: NMessage) extends PubSub
 case class DeleteMsg(msg: NMessage) extends PubSub
@@ -65,10 +65,15 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
 
   //  msg pop 을 완료하기 전에는 다음 메시지를 처리하지 않기 때문에 굳이 buffer 를 사용하지 않아도 된다.
   def msgPop(): Unit = {
-    discoveredNOMList = (List.empty[DiscoverMsg] /: discoveredNOMList){ case (x, y) => user ! y; Nil }
-    reflectedNOMList = (List.empty[ReflectMsg] /: reflectedNOMList){ case (x, y) => user ! y; Nil }
-    receivedNOMList = (List.empty[RecvMsg] /: receivedNOMList){ case (x, y) => user ! y; Nil }
-    removedNOMList = (List.empty[RemoveMsg] /: removedNOMList){ case (x, y) => user ! y; Nil }
+    discoveredNOMList.foreach(user ! _)
+    reflectedNOMList.foreach(user ! _)
+    receivedNOMList.foreach(user ! _)
+    removedNOMList.foreach(user ! _)
+
+    discoveredNOMList = List.empty[DiscoverMsg]
+    reflectedNOMList = List.empty[(ReflectMsg)]
+    receivedNOMList = List.empty[RecvMsg]
+    removedNOMList = List.empty[RemoveMsg]
   }
 
   def pubSubInfoForwarding: Unit = {
