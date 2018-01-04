@@ -70,8 +70,8 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
       val power1 = PowerOn(1, updateValue + 1)
       val power2 = PowerOn(2, updateValue + 10001)
 
-      UpadteMessage(power1, 1, true) /// partial serialization
-      UpadteMessage(power2, 2)
+      UpadteMessage(power1, 1, false)
+      UpadteMessage(power2, 2)    /// partial serialization
     }
 
     if (updateValue == 1000) {
@@ -114,6 +114,7 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
 
     case _ => println("[Control Manager] unknown Pub/Sub message. actor receive function fail!")
   }
+
 
   //  Wrapper
   def RegisterMessage(s: NomSerializable, id: Int): Unit = {

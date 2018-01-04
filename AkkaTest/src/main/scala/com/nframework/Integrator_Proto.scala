@@ -51,7 +51,7 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
     val flight2 = Flight(2, 0.0, Position(0.0, 0.0, 0.0))
 
     RegisterMessage(flight1, 1)
-    RegisterMessage(flight1, 2)
+    RegisterMessage(flight2, 2)
 
     println("UpdateMap --> " + UpdateMap)
 
@@ -65,8 +65,8 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
       val flight1 = Flight(1, updateValue * 10.0, Position(updateValue * 50.0, updateValue * 30.0, updateValue * 10.0))
       val flight2 = Flight(2, updateValue * 20.0, Position(updateValue * 100.0, updateValue * 50.0, updateValue * 20.0))
 
-      UpadteMessage(flight1, 1, true) /// partial serialization
-      UpadteMessage(flight1, 2)
+      UpadteMessage(flight1, 1, false)
+      UpadteMessage(flight2, 2)  /// partial serialization
     }
 
     if (updateValue == 1000) {
@@ -111,6 +111,7 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
 
     case _ => println("[Simulation Manager] unknown Pub/Sub message. actor receive function fail!")
   }
+
 
   //  Wrapper
   def RegisterMessage(s: NomSerializable, id: Int): Unit = {
