@@ -278,11 +278,11 @@ class NEnumType extends NDataType {
   }
   
   // fields
-  private var enumValue = NEnum("", 0)
-  private var enumList: ListBuffer[NEnumerator] = new ListBuffer  
+  private var enumValue = NEnum("", 0)    
   private var enumMap = collection.mutable.HashMap.empty[String, NEnumerator]
   private var enumValueMap = collection.mutable.HashMap.empty[Int, NEnumerator]
-  private var length: Int = 0
+  var length: Int = 0
+  var enumList: ListBuffer[NEnumerator] = new ListBuffer
     
   size = 1
   indicator = 0

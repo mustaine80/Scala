@@ -14,6 +14,7 @@ class NFixedString(s: String, typeLen: Short, fixedLen: Int) extends NValueType 
   def this(s: String, fixedLen: Int) = this(s, 2, fixedLen)
   def this(s: String) = this(s, 2, 0)
   def this(fixedLen: Int) = this("", 2, 0)
+  def this(typeLen: Short, fixedLen: Int) = this("", typeLen, fixedLen)
   
   def toInt(): Int = {
     value.toInt

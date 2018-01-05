@@ -31,6 +31,10 @@ case class Interaction(name: String, sharing: String, alignment: Boolean) {
   val parameterList: collection.mutable.ListBuffer[Parameter] = new collection.mutable.ListBuffer
 }
 
+case class BasicTypeInfo(fieldName: String, path: String, indicator: Int, fixedLength: Int, typeName: String, size: Int)
+case class EnumTypeInfo(fieldName: String, path: String, indicator: Int)
+case class ComplexTypeInfo(fieldName: String, path: String, indicator: Int, fixedLength: Int, typeName: String, size: Int, msg: NMessage)
+
 object NOMParser extends Parser {
   val basicTypeList: collection.mutable.ListBuffer[BasicType] = new collection.mutable.ListBuffer
   val enumTypeList: collection.mutable.ListBuffer[EnumType] = new collection.mutable.ListBuffer
@@ -97,7 +101,9 @@ object NOMParser extends Parser {
     val json = JSON.parseFull(jsonstrutf8)
     
     val result : Boolean = if(json != None)
-    {    
+    {  
+      var success = true
+      
       val root = json.get.asInstanceOf[Map[String, Any]]
       
       val basicTypeMap = root("BasicTypes").asInstanceOf[Map[String, Map[String, String]]]
@@ -145,9 +151,9 @@ object NOMParser extends Parser {
   }
   
   def composeBasicTypeList(m: Map[String, Map[String, String]]) {
-    m.map( ( e: (String, Map[String, String]) ) => BasicType(e._1, Integer.parseInt(e._2("length")), e._2("endian"), e._2("type"), primitiveTypeMap(e._2("type")) ) ).foreach( basicTypeList += _ )
+    m.map( ( e: (String, Map[String, String]) ) => BasicType(e._1, e._2("length").toInt, e._2("endian"), e._2("type"), primitiveTypeMap(e._2("type")) ) ).foreach( basicTypeList += _ )
     
-    // 타입 이름 중복 체크
+    // 타입 이름 중복 체크 => 처음 가져올 때 map에서 중복이 걸러지므로 아래 코드는 의미가 없어a
     basicTypeList.groupBy(_.name).collect { case (x, ys) if ys.lengthCompare(1) > 0 => {
           val builder = new StringBuilder
           builder.append("NOM parse failed: duplicated basic type (")
@@ -280,15 +286,83 @@ object NOMParser extends Parser {
   }
   
   private def checkObjectList() {
-    
+    objectList.foreach( (o: Object) => {
+      o.attributeList.foreach( (f: Attribute) => {
+        var foundBasicType = false
+        var foundEnumType = false
+        var foundComplexType = false
+        
+        basicTypeMap.get(f.dataType) match {
+          case Some(bt) => foundBasicType = true
+          case None =>
+        }
+        
+        enumTypeMap.get(f.dataType) match {
+          case Some(et) => foundEnumType = true
+          case None =>
+        }
+        
+        complexTypeMap.get(f.dataType) match {
+          case Some(ct) => foundComplexType = true
+          case None =>
+        }
+        
+        if( !(foundBasicType || foundEnumType || foundComplexType) ) {
+          val builder = new StringBuilder
+          builder.append("NOM parse failed : Object ")
+          builder.append(o.name)
+          builder.append("'s attribute ")
+          builder.append(f.name)
+          builder.append(" has an invalied data type (")
+          builder.append(f.dataType)
+          builder.append(")")
+          throw new NNOMFileParsingFailedException(builder.toString())
+        }
+        
+      })
+    })
   }
   
   private def checkInteractionList() {
-    
+    interactionList.foreach( (i: Interaction) => {
+      i.parameterList.foreach( (f: Parameter) => {
+        var foundBasicType = false
+        var foundEnumType = false
+        var foundComplexType = false
+        
+        basicTypeMap.get(f.dataType) match {
+          case Some(bt) => foundBasicType = true
+          case None =>
+        }
+        
+        enumTypeMap.get(f.dataType) match {
+          case Some(et) => foundEnumType = true
+          case None =>
+        }
+        
+        complexTypeMap.get(f.dataType) match {
+          case Some(ct) => foundComplexType = true
+          case None =>
+        }
+        
+        if( !(foundBasicType || foundEnumType || foundComplexType) ) {
+          val builder = new StringBuilder
+          builder.append("NOM parse failed : Interaction ")
+          builder.append(i.name)
+          builder.append("'s parameter ")
+          builder.append(f.name)
+          builder.append(" has an invalied data type (")
+          builder.append(f.dataType)
+          builder.append(")")
+          throw new NNOMFileParsingFailedException(builder.toString())
+        }
+        
+      })
+    })
   }
   
-  def createPrimitiveTypeObject(basic: BasicType) : NPrimitiveType = {
-    var pt: NPrimitiveType = null
+  def createPrimitiveTypeObject(basic: BasicType, info: BasicTypeInfo) : NPrimitiveType = {
+    val pt = new NPrimitiveType
     var value: NValueType = null
     
     basic.dataType match {
@@ -309,11 +383,14 @@ object NOMParser extends Parser {
       case EDataType.FLOAT => value = new NFloat
       case EDataType.DOUBLE => value = new NDouble
       case EDataType.STRING => {
-        //value = new NString
+        value = new NString
+        value.typeLength = if(basic.length != 0) basic.length else 0
       }
-      case EDataType.VARIABLE =>
-      case EDataType.FIXED_STRING =>
-      case EDataType.FIXED_DATUM =>      
+      case EDataType.VARIABLE => value = new NVariable
+      case EDataType.FIXED_STRING => {
+        value = if(basic.length != 0) new NFixedString(basic.length.toShort, info.fixedLength) else new NFixedString(info.fixedLength)        
+      }
+      case EDataType.FIXED_DATUM => value = new NFixedDatum(info.fixedLength)
     }
     
     value.bigEndian = basic.endian match {
@@ -322,18 +399,50 @@ object NOMParser extends Parser {
       case _ => false
     }
     value.signed = true
+    value.path = path
+    value.length = if(basic.dataType == EDataType.STRING || basic.dataType == EDataType.VARIABLE) 4 else basic.length
+        
+    pt.name = info.fieldName
+    pt.path = info.path
+    pt.indicator = info.indicator
+    pt.typeName = info.typeName
+    
+    if(info.size > 1)
+      pt.setSize(info.size)
     
     pt.setValueObject(value)
     
     pt
   }
   
-  def createEnumTypeObject(enum: EnumType) : NEnumType = {
-    null
+  def createEnumTypeObject(enum: EnumType, info: EnumTypeInfo) : NEnumType = {
+    val et = new NEnumType
+    
+    enum.enumList.foreach( (e: Enumerator) => et.addEnumerator(e.name, e.value) )
+    
+    et.name = info.fieldName
+    et.path = info.path
+    et.indicator = info.indicator
+    et.length = enum.length
+    
+    et
   }
   
-  def createComplexTypeObject(complex: ComplexType) : NComplexType = {
-    null
+  def createComplexTypeObject(complex: ComplexType, info: ComplexTypeInfo) : NComplexType = {
+    val ct = new NComplexType
+    
+    ct.name = info.fieldName
+    ct.path = info.path
+    ct.indicator = info.indicator
+    ct.typeName = info.typeName
+    
+    var childTypeName = ""
+    
+    complex.fieldList.foreach( (f: Field) => {
+      
+    })
+    
+    ct
   }
   
   def getMessageList() : List[NMessage] = msgList.toList
