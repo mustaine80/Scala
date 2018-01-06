@@ -14,6 +14,7 @@ class PubSubSerializer extends SerializerWithStringManifest {
   val UpdateMsgManifest = classOf[UpdateMsg].getName
   val SendMsgManifest = classOf[SendMsg].getName
   val DeleteMsgManifest = classOf[DeleteMsg].getName
+
   val ReflectMsgManifest = classOf[ReflectMsg].getName
   val DiscoverMsgManifest = classOf[DiscoverMsg].getName
   val RecvMsgManifest = classOf[RecvMsg].getName
@@ -28,6 +29,7 @@ class PubSubSerializer extends SerializerWithStringManifest {
     case _: UpdateMsg => UpdateMsgManifest
     case _: SendMsg => SendMsgManifest
     case _: DeleteMsg => DeleteMsgManifest
+
     case _: ReflectMsg => ReflectMsgManifest
     case _: DiscoverMsg => DiscoverMsgManifest
     case _: RecvMsg => RecvMsgManifest
@@ -43,6 +45,7 @@ class PubSubSerializer extends SerializerWithStringManifest {
     case m: UpdateMsg => Pickle.intoBytes(m).array()
     case m: SendMsg => Pickle.intoBytes(m).array()
     case m: DeleteMsg => Pickle.intoBytes(m).array()
+
     case m: ReflectMsg => Pickle.intoBytes(m).array()
     case m: DiscoverMsg => Pickle.intoBytes(m).array()
     case m: RecvMsg => Pickle.intoBytes(m).array()
@@ -58,6 +61,7 @@ class PubSubSerializer extends SerializerWithStringManifest {
     case UpdateMsgManifest => Unpickle[UpdateMsg].fromBytes(ByteBuffer.wrap(bytes))
     case SendMsgManifest => Unpickle[SendMsg].fromBytes(ByteBuffer.wrap(bytes))
     case DeleteMsgManifest => Unpickle[DeleteMsg].fromBytes(ByteBuffer.wrap(bytes))
+
     case ReflectMsgManifest => Unpickle[ReflectMsg].fromBytes(ByteBuffer.wrap(bytes))
     case DiscoverMsgManifest => Unpickle[DiscoverMsg].fromBytes(ByteBuffer.wrap(bytes))
     case RecvMsgManifest => Unpickle[RecvMsg].fromBytes(ByteBuffer.wrap(bytes))
@@ -68,11 +72,13 @@ class PubSubSerializer extends SerializerWithStringManifest {
     case PubSubInfoForwardingManifest => Unpickle[PubSubInfoForwarding].fromBytes(ByteBuffer.wrap(bytes))
   }
 
-  implicit val pubSubPickler = boopickle.CompositePickler[PubSub]
+  implicit val pubPickler = boopickle.CompositePickler[PubMsg]
     .addConcreteType[RegisterMsg]
     .addConcreteType[UpdateMsg]
     .addConcreteType[SendMsg]
     .addConcreteType[DeleteMsg]
+
+  implicit val subPickler = boopickle.CompositePickler[SubMsg]
     .addConcreteType[ReflectMsg]
     .addConcreteType[DiscoverMsg]
     .addConcreteType[RecvMsg]

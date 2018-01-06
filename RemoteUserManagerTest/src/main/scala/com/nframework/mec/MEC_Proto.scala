@@ -23,37 +23,36 @@ object MEC_Proto {
   case class PubSubInfo(msgName: String, managerName: String, sharing: String)
 
   def props(test: ActorRef) = {
-    Props(new MEC_Proto("MecTestActor", null, test))
+    Props(new MEC_Proto("mecTestActor", test, test))
   }
 
   /*  test 전용이며, testActor 에 MEC actor 상태를 전송하기 위해 사용한다. */
-  case class GetState(test: ActorRef)
+  case class GetSubMsgLists(test: ActorRef)
+  case class RunMsgPop(test: ActorRef)
 }
 
 
-abstract class PubSub
-
 /// msg: mec -> meb
-case class RegisterMsg(msg: NMessage) extends PubSub
-case class UpdateMsg(msg: NMessage) extends PubSub
-case class SendMsg(msg: NMessage) extends PubSub
-case class DeleteMsg(msg: NMessage) extends PubSub
+abstract class PubMsg
+
+case class RegisterMsg(msg: NMessage) extends PubMsg
+case class UpdateMsg(msg: NMessage) extends PubMsg
+case class SendMsg(msg: NMessage) extends PubMsg
+case class DeleteMsg(msg: NMessage) extends PubMsg
 
 
 /// msg: meb -> mec
-case class DiscoverMsg(msg: NMessage) extends PubSub
-case class ReflectMsg(msg: NMessage) extends PubSub
-case class RecvMsg(msg: NMessage) extends PubSub
-case class RemoveMsg(msg: NMessage) extends PubSub
+abstract class SubMsg
+
+case class DiscoverMsg(msg: NMessage) extends SubMsg
+case class ReflectMsg(msg: NMessage) extends SubMsg
+case class RecvMsg(msg: NMessage) extends SubMsg
+case class RemoveMsg(msg: NMessage) extends SubMsg
 
 
 class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
   extends Actor with Timers {
-
-  var discoveredNOMList = List.empty[DiscoverMsg]
-  var reflectedNOMList = List.empty[(ReflectMsg)]
-  var receivedNOMList = List.empty[RecvMsg]
-  var removedNOMList = List.empty[RemoveMsg]
+  var subMsgList = List.empty[SubMsg]
 
   init()
 
@@ -63,17 +62,12 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     println("MEC initialize ...")
   }
 
-  //  msg pop 을 완료하기 전에는 다음 메시지를 처리하지 않기 때문에 굳이 buffer 를 사용하지 않아도 된다.
+  //  Pub/Sub 특성 상 stack 처럼 처리해도 상관없다.
+  //  todo: 1 ms 주기에 모든 메시지 처리를 보장하지 않더라도, msgPop() 은 종료되어야 하는 것 아닌가?
+  //  만약 1 ms 주기를 보장하려면 특정 버퍼를 초과하는 경우에는 예전 데이터를 버려야 한다.
   def msgPop(): Unit = {
-    discoveredNOMList.foreach(user ! _)
-    reflectedNOMList.foreach(user ! _)
-    receivedNOMList.foreach(user ! _)
-    removedNOMList.foreach(user ! _)
-
-    discoveredNOMList = List.empty[DiscoverMsg]
-    reflectedNOMList = List.empty[(ReflectMsg)]
-    receivedNOMList = List.empty[RecvMsg]
-    removedNOMList = List.empty[RemoveMsg]
+    subMsgList.foreach(user ! _)
+    subMsgList = List.empty[SubMsg]
   }
 
   def pubSubInfoForwarding: Unit = {
@@ -88,18 +82,11 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
 
 
   def receive = {
-    //  user -> mec: data request
-    case m: RegisterMsg => meb ! m
-    case m: UpdateMsg => meb ! m
-    case m: SendMsg => meb ! m
-    case m: DeleteMsg => meb ! m
+    //  user -> mec: data request (simple forwarder)
+    case m: PubMsg => meb ! m
 
-    //  meb -> mec: data push
-    //  mec 는 단순히 Pub/Sub msg 에 대한 stack 역할만을 수행한다.
-    case m: DiscoverMsg => discoveredNOMList = m :: discoveredNOMList
-    case m: ReflectMsg => reflectedNOMList = m :: reflectedNOMList
-    case m: RecvMsg => receivedNOMList = m :: receivedNOMList
-    case m: RemoveMsg => removedNOMList = m :: removedNOMList
+    //  meb -> mec: data push (simple Stack)
+    case m: SubMsg => subMsgList = m :: subMsgList
 
     //  MEB attach ack 처리
     case "MEB attatchment success" =>
@@ -114,7 +101,6 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     case "MEB detatchment success" =>
       println("[MEC] MEB detatchment success")
 
-
     //  MEB pub sub forwarding ack 처리
     case "PubSub info forwarding complete" =>
       println("PubSub info forwarding success")
@@ -124,12 +110,12 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     case Pop => msgPop()
 
     //  다중 JVM 환경에서 actor test 를 위한 코드
-    case GetState(test) => {
-      test ! discoveredNOMList
-      test ! reflectedNOMList
-      test ! receivedNOMList
-      test ! removedNOMList
-    }
+    case GetSubMsgLists(test) =>
+      test ! subMsgList
+
+    case RunMsgPop(test) =>
+      msgPop()
+      test ! subMsgList.size
 
     // unknown message
     case m: String => println(s"received $m")

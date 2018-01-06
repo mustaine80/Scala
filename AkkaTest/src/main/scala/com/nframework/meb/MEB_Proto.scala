@@ -10,7 +10,9 @@ import com.nframework.mec._
  *  중복 코드에 대한 리팩토링
  *  pubs, subs 에 대한 컬렉션 타입을 immutuable 형태로 처리한다.
  */
-object PubSubTable {
+object MEB_Proto {
+  var mecMap = Map[String, ActorRef]()
+
   var pubs = Map.empty[String, Set[String]]
   var subs = Map.empty[String, Set[String]]
 
@@ -64,7 +66,7 @@ object PubSubTable {
   /*  MEC 요청을 수신하여 subscriber manager 들을 찾는다. 그리고 mapping 된 msg 를 보낸다.
    *
    */
-  def notifyAll(ps: PubSub, publisher: ActorRef): Unit = ps match {
+  def notifyAll(ps: PubMsg, publisher: ActorRef): Unit = ps match {
     case RegisterMsg(msg) =>
       if (pubs.contains(msg.name)) {
         subs(msg.name).foreach { x =>
@@ -97,11 +99,6 @@ object PubSubTable {
 }
 
 
-object MEB_Proto {
-  var mecMap = Map[String, ActorRef]()
-}
-
-
 class MEB_Proto extends Actor {
   init()
 
@@ -116,7 +113,7 @@ class MEB_Proto extends Actor {
     }
 
     case MebDetatch(name) => {
-      PubSubTable.unregister(name)
+      MEB_Proto.unregister(name)
       MEB_Proto.mecMap - name
       sender() ! "MEB detatchment success"
     }
@@ -124,18 +121,18 @@ class MEB_Proto extends Actor {
     case m: PubSubInfo => {
       println("MEB Pub/Sub register, " + m)
 
-      val (pubs, subs) = PubSubTable.register(m)
-      PubSubTable.pubs = pubs
-      PubSubTable.subs = subs
+      val (pubs, subs) = MEB_Proto.register(m)
+      MEB_Proto.pubs = pubs
+      MEB_Proto.subs = subs
 
-      println("MEB pusbs. " + PubSubTable.pubs)
-      println("MEB susbs. " + PubSubTable.subs)
+      println("MEB pusbs. " + MEB_Proto.pubs)
+      println("MEB susbs. " + MEB_Proto.subs)
     }
 
     case PubSubInfoForwarding(userName) => sender() ! "PubSub info forwarding complete"
 
     //  publisher 에게 자신의 토픽이 되돌아 오는 것을 막기 위해 sender ref 가 필요하다.
-    case m: PubSub => PubSubTable.notifyAll(m, sender())
+    case m: PubMsg => MEB_Proto.notifyAll(m, sender())
 
     case m: String => println(s"received $m")
   }
