@@ -121,7 +121,7 @@ class SimulationManager(meb: ActorRef) extends Actor with Timers {
 
   //  default parameter 는 부분 직렬화를 지원한다.
   def UpadteMessage(s: NomSerializable, objId: Int, partialSerialization: Boolean = true): Unit = {
-    if (partialSerialization == true) {
+    if (partialSerialization) {
       val updateFlag = compareObject(UpdateMap(s.getName(), objId), s)
       mec ! UpdateMsg(NMessage(s.getName(), objId, nomObjectTypeSerializer(s, updateFlag)))
       UpdateMap = UpdateMap.updated((s.getName(), objId), s)
@@ -142,7 +142,7 @@ object Integrator_Test {
     val config = ConfigFactory.load("server")
     val system = ActorSystem("server", config)
 
-    val meb = system.actorOf(Props[MEB_Proto], "MEB")
+    val meb = system.actorOf(MEB_Proto.props(null), "MEB")
     val simulationManager = system.actorOf(Props(new SimulationManager(meb)), "SimulationManager")
   }
 }

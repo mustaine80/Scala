@@ -17,7 +17,7 @@ object MEC_Proto {
   case class MebAttatch(name: String)
   case class MebDetatch(name: String)
 
-  case class PubSubInfoForwarding(name: String) /// msg sharing 정보 전파 요청이 완료된 것을 확인하기 위한 용도
+  case class PubSubInfoForwarding(msg: String) /// msg sharing 정보 전파 요청이 완료된 것을 확인하기 위한 용도
 
   /* pub/sub 정보를 MEB 에 넘기기 위한 클래스 */
   case class PubSubInfo(msgName: String, managerName: String, sharing: String)
@@ -28,7 +28,6 @@ object MEC_Proto {
 
   /*  test 전용이며, testActor 에 MEC actor 상태를 전송하기 위해 사용한다. */
   case class GetSubMsgLists(test: ActorRef)
-  case class RunMsgPop(test: ActorRef)
 }
 
 
@@ -63,7 +62,6 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
   }
 
   //  Pub/Sub 특성 상 stack 처럼 처리해도 상관없다.
-  //  todo: foreach 순회하면서 actor send 를 할것이라면 그냥 바로 보내는게 나을텐데? 차라리 subMsgList 전체를 전송하는 방식으로 변경해야 한다.
   def msgPop(): Unit = {
     subMsgList.foreach(user ! _)
     subMsgList = List.empty[SubMsg]
@@ -87,12 +85,18 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     //  meb -> mec: data push (simple Stack)
     case m: SubMsg => subMsgList = m :: subMsgList
 
+    //  MEB pub sub forwarding ack 처리
+    case "PubSub info forwarding complete" =>
+      println("PubSub info forwarding success")
+      user ! PubSubInfoForwarding(userName)
+
     //  MEB attach ack 처리
     case "MEB attatchment success" =>
       println("[MEC] MEB attatchment success")
       pubSubInfoForwarding
 
     //  MEC 종료 시 MEB detach ack 처리
+    //  todo: 사용자 요청이 아니라 MEC 종료 시 자동으로 수행되어야 하는 작업이 되도록 보완해야 한다.
     case "MEC quit request" =>
       println("[MEC] user request stop MEC")
       meb ! MebDetatch(userName)
@@ -100,21 +104,12 @@ class MEC_Proto(userName: String, user: ActorRef, meb: ActorRef)
     case "MEB detatchment success" =>
       println("[MEC] MEB detatchment success")
 
-    //  MEB pub sub forwarding ack 처리
-    case "PubSub info forwarding complete" =>
-      println("PubSub info forwarding success")
-      user ! PubSubInfoForwarding(userName)
-
     //  MEC self pub/sub msg pop schedule
     case Pop => msgPop()
 
     //  다중 JVM 환경에서 actor test 를 위한 코드
     case GetSubMsgLists(test) =>
       test ! subMsgList
-
-    case RunMsgPop(test) =>
-      msgPop()
-      test ! subMsgList.size
 
     // unknown message
     case m: String => println(s"received $m")

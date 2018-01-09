@@ -1,7 +1,8 @@
 package com.nframework.meb
 
-import akka.actor.{Actor, ActorRef}
-import com.nframework.mec.MEC_Proto.{MebAttatch, MebDetatch, PubSubInfo, PubSubInfoForwarding}
+import akka.actor.{Actor, ActorRef, Props}
+import com.nframework.meb.MEB_Proto.{GetPubsSize, GetSubsSize}
+import com.nframework.mec.MEC_Proto._
 import com.nframework.mec._
 
 
@@ -15,6 +16,10 @@ object MEB_Proto {
 
   var pubs = Map.empty[String, Set[String]]
   var subs = Map.empty[String, Set[String]]
+
+  def props(test: ActorRef) = {
+    Props(new MEB_Proto(test))
+  }
 
   def register(info: PubSubInfo): (Map[String, Set[String]], Map[String, Set[String]]) = info.sharing match {
     case "Publish" =>
@@ -45,7 +50,7 @@ object MEB_Proto {
   def sharingRemover(items: Map[String, Set[String]], msgName: String, managerName: String): Map[String, Set[String]] = {
     val item = items.get(msgName) match {
       case Some(x) => Map(msgName -> (x -- Set(managerName)))
-      case None => Map(msgName -> Set(managerName))
+      case None => Nil
     }
     (items ++ item) filter (_._2.nonEmpty)
   }
@@ -68,38 +73,30 @@ object MEB_Proto {
    */
   def notifyAll(ps: PubMsg, publisher: ActorRef): Unit = ps match {
     case RegisterMsg(msg) =>
-      if (pubs.contains(msg.name)) {
-        subs(msg.name).foreach { x =>
-          val subscriber = MEB_Proto.mecMap(x)
-          if (subscriber != publisher)
-            subscriber ! DiscoverMsg(msg)
-        }
-      } else
+      if (pubs.contains(msg.name))
+        getSubs(msg.name, publisher).foreach( _ ! DiscoverMsg(msg))
+      else
         println("[MEB] RegisterMsg error. Sharing attribute is not 'Publish'. msg : " + msg.name)
 
-    case UpdateMsg(msg) =>
-      subs(msg.name).foreach{ x =>
-        val subscriber = MEB_Proto.mecMap(x)
-        if (subscriber != publisher)
-          subscriber ! ReflectMsg(msg) }
+    case UpdateMsg(msg) => getSubs(msg.name, publisher).foreach( _ ! ReflectMsg(msg))
 
+    case SendMsg(msg) => getSubs(msg.name, publisher).foreach( _ ! RecvMsg(msg))
 
-    case SendMsg(msg) =>
-      subs(msg.name).foreach{ x =>
-        val subscriber = MEB_Proto.mecMap(x)
-        if (subscriber != publisher)
-          subscriber ! RecvMsg(msg) }
-
-    case DeleteMsg(msg) =>
-      subs(msg.name).foreach{ x =>
-        val subscriber = MEB_Proto.mecMap(x)
-        if (subscriber != publisher)
-          subscriber ! RemoveMsg(msg) }
+    case DeleteMsg(msg) => getSubs(msg.name, publisher).foreach( _ ! RemoveMsg(msg))
   }
+
+  //  todo: cache 형태로 사용할까? detatch 가 자주 일어나는 것은 아니니까. 나중에 처리한다.
+  def getSubs(msgName: String, publisher: ActorRef): Seq[ActorRef] =
+    subs(msgName).map(MEB_Proto.mecMap(_)).filter(_ != publisher).toSeq
+
+
+  /*  test 전용이며, testActor 에 MEB actor 상태를 전송하기 위해 사용한다. */
+  case class GetPubsSize(test: ActorRef)
+  case class GetSubsSize(test: ActorRef)
 }
 
 
-class MEB_Proto extends Actor {
+class MEB_Proto(test: ActorRef) extends Actor {  ///  test actor ref 획득을 위한 default parameter
   init()
 
   def init(): Unit = {
@@ -108,32 +105,37 @@ class MEB_Proto extends Actor {
 
   def receive = {
     case MebAttatch(name) => {
-      MEB_Proto.mecMap = MEB_Proto.mecMap.updated(name, sender())
-      sender() ! "MEB attatchment success"
+      MEB_Proto.mecMap = MEB_Proto.mecMap.updated(name, Sender)
+      Sender ! "MEB attatchment success"
     }
 
     case MebDetatch(name) => {
       MEB_Proto.unregister(name)
       MEB_Proto.mecMap - name
-      sender() ! "MEB detatchment success"
+      Sender ! "MEB detatchment success"
     }
 
     case m: PubSubInfo => {
-      println("MEB Pub/Sub register, " + m)
-
       val (pubs, subs) = MEB_Proto.register(m)
       MEB_Proto.pubs = pubs
       MEB_Proto.subs = subs
-
-      println("MEB pusbs. " + MEB_Proto.pubs)
-      println("MEB susbs. " + MEB_Proto.subs)
     }
 
-    case PubSubInfoForwarding(userName) => sender() ! "PubSub info forwarding complete"
+    case PubSubInfoForwarding(userName) => Sender ! "PubSub info forwarding complete"
 
     //  publisher 에게 자신의 토픽이 되돌아 오는 것을 막기 위해 sender ref 가 필요하다.
-    case m: PubMsg => MEB_Proto.notifyAll(m, sender())
+    case m: PubMsg => MEB_Proto.notifyAll(m, sender())  /// publisher 를 filter 하기 때문에 Sender 가 아닌 sender()를 사용한다.
+
+    //  다중 JVM 환경에서 actor test 를 위한 코드
+    case GetPubsSize(test) => test ! MEB_Proto.pubs
+    case GetSubsSize(test) => test ! MEB_Proto.subs
 
     case m: String => println(s"received $m")
+  }
+
+  //  helper for test
+  def Sender: ActorRef = {
+    if (this.test == null) sender()
+    else test
   }
 }
