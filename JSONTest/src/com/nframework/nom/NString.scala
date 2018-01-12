@@ -74,9 +74,9 @@ class NString(s: String, typeLen: Short) extends NValueType {
     val data = value.getBytes(encoding)
     val serialized = new Array[Byte](data.length + 4)
     
-    val bb = java.nio.ByteBuffer.allocate(length)
+    val bb = java.nio.ByteBuffer.allocate(value.length)
     
-    bb.putInt(length)
+    bb.putInt(value.length)
         
     bb.array().copyToArray(serialized, 0)
     data.copyToArray(serialized, 4)
@@ -92,12 +92,12 @@ class NString(s: String, typeLen: Short) extends NValueType {
       case _ => "UTF-16LE"
     }
      
-    data.copyToArray(indicator, offset, 4)
+    data.drop(offset).copyToArray(indicator, 0, 4)
       
-    stringLength = java.nio.ByteBuffer.wrap(indicator.reverse).getInt
+    stringLength = java.nio.ByteBuffer.wrap(indicator).getInt
      
     val stringValue = new Array[Byte](stringLength * typeLength)
-    data.copyToArray(stringValue, offset + 4, stringValue.length)
+    data.drop(offset + 4).copyToArray(stringValue, 0, stringValue.length)
     
     value = new String(stringValue, encoding)      
     

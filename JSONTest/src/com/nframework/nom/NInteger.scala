@@ -84,7 +84,7 @@ class NInteger(s: Integer) extends NValueType {
     
     val arr = new Array[Byte](length) 
       
-    data.copyToArray(arr, offset, length)
+    data.drop(offset).copyToArray(arr, 0, length)
     
     if(bigEndian) {
       v = java.nio.ByteBuffer.wrap(arr).getInt

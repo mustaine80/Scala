@@ -82,7 +82,7 @@ class NShort(s: Short) extends NValueType {
     
     val arr = new Array[Byte](length) 
       
-    data.copyToArray(arr, offset, length)
+    data.drop(offset).copyToArray(arr, 0, length)
     
     if(bigEndian) {
       // java.nio.ByteBuffer 기본 설정이 big endian이므로 little일 경우에만 byte 배열을 뒤집어서 디코딩한다.

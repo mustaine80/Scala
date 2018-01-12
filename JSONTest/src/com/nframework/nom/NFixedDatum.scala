@@ -76,7 +76,7 @@ class NFixedDatum(d: Array[Byte], fixedLen: Int) extends NValueType {
   }
   
   def deserialize(data: Array[Byte], offset: Int) : Int = {    
-    data.copyToArray(value, offset, length)
+    data.drop(offset).copyToArray(value, 0, length)
     
     length
   }

@@ -23,9 +23,7 @@ final class NField(field: NField) {
     _dataType = value
     
     if(_dataType != null)
-      _dataType.setSize(size)
-      
-      println("setter!")
+      _dataType.setSize(size)      
   }
   def alignmentLength_=(value: Short) {
     _alignmentLength = value

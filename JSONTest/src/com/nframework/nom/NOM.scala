@@ -97,11 +97,12 @@ final class NOM {
   }
   
   def addDataTypeObjectWithPath(path: String, dataType: NDataType) {
+     println("AddDataTypeObjectWithPath : " + path)
     if(path.length() != 0) {
       dataTypeMap += (path -> dataType)
       
       if(pathList.filter(_ == path).length == 0)
-        pathList += path
+        pathList += path       
     }
   }
   
@@ -131,6 +132,8 @@ final class NOM {
         val fieldLength = field.getLength(alignment, nextTypeLength, offset)
         length += fieldLength
         offset += fieldLength
+      } else {
+        length += field.getLength()
       }
     }
     
@@ -306,7 +309,7 @@ final class NOM {
     var nextTypeLength: Short = 0
     
     if(totalLength != 0) {
-      data = new ArrayBuffer[Byte](totalLength + 1).toArray
+      data = new Array[Byte](totalLength + 1)
             
       for(i <- (0 to fieldList.length-1)) {
         field = fieldList(i)
@@ -377,7 +380,6 @@ final class NOM {
       
       lengthCount += fieldLength
       totalLength += fieldLength
-      offset += fieldLength
     }
     
     true

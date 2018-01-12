@@ -1,12 +1,15 @@
 package com.nframework.nom
 
-class NEnum(var enumerator: String, var enumValue: Int) extends NValueType {
-  
+class NEnum(var enumerator: String, var enumValue: Int) extends NValueType {  
   dataType = EDataType.ENUM
   length = 4
   typeLength = 4
   
   def this() = this("", 0)
+  
+  def this(enum: String) = this(enum, 0)
+  
+  def this(enum: Int) = this("", enum)
   
   def toInt(): Int = {
     enumValue
@@ -33,7 +36,7 @@ class NEnum(var enumerator: String, var enumValue: Int) extends NValueType {
   }
   
   override def toString(): String = {
-    enumValue.toString()
+    enumerator
   }
   
   def setValue(valueType: NValueType) : Boolean = {
@@ -75,4 +78,6 @@ class NEnum(var enumerator: String, var enumValue: Int) extends NValueType {
 object NEnum {
   def apply(enumerator: String, enumValue: Int) = new NEnum(enumerator, enumValue)
   def apply(e: NEnum) = new NEnum(e.enumerator, e.enumValue)
+  def apply(enumerator: String) = new NEnum(enumerator)
+  def apply(enumValue: Int) = new NEnum(enumValue)
 }

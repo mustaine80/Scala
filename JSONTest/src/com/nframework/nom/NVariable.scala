@@ -94,12 +94,12 @@ class NVariable(v: Array[Byte], len: Int) extends NValueType {
   def deserialize(data: Array[Byte], offset: Int) : Int = {    
     val indicator = new Array[Byte](4)
     
-    data.copyToArray(indicator, offset, 4)
+    data.drop(offset).copyToArray(indicator, 0, 4)
     
     val valueLength = java.nio.ByteBuffer.wrap(indicator.reverse).getInt
     
     value = new Array[Byte](valueLength)
-    data.copyToArray(value, offset + 4, valueLength)
+    data.drop(offset + 4).copyToArray(value, 0, valueLength)
     
     length = 4 + valueLength
     

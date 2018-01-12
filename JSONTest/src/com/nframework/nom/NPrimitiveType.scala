@@ -92,7 +92,7 @@ class NPrimitiveType extends NDataType {
   
   def resize(n: Int) {
     if(size > n) {
-      valueList.dropRight(size - n)
+      valueList = valueList.dropRight(size - n)
     } else if(size < n) {
       for(i <- 0 to (n - size)) valueList += valueList(0).getClone()
     } else {
@@ -152,8 +152,8 @@ class NPrimitiveType extends NDataType {
     
   def serialize(data: Array[Byte], length: Int, offset: Int, alignment: Boolean, nextTypeLength: Short) : (Int, Int) = {
     val indicatorInfo = serializeIndicator(data, length, offset, alignment)
-    var len = length + indicatorInfo._1
-    var off = length + indicatorInfo._2
+    var len = indicatorInfo._1
+    var off = indicatorInfo._2
     
     valueList.foreach( (v: NValueType) => { 
         val info = v.serialize()
@@ -172,7 +172,7 @@ class NPrimitiveType extends NDataType {
     val indicatorInfo = deserializeIndicator(data, length, offset, alignment)
     val fieldSize = indicatorInfo._3
 
-    var len = length
+    var len = 0
     var off = offset
     
     if(fieldSize != 0) {
@@ -213,7 +213,9 @@ class NPrimitiveType extends NDataType {
   // fields
   private var valueList: ListBuffer[NValueType] = new ListBuffer
   
+  valueList += null
+  
   name = "NPrimitiveType"
-  size = 0
+  size = 1
   indicator = 0
 }

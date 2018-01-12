@@ -46,7 +46,8 @@ class NFixedString(s: String, typeLen: Short, fixedLen: Int) extends NValueType 
   
   def setValue(valueType: NValueType) : Boolean = {
     this.value = valueType.asInstanceOf[NFixedString].value
-    this.length = valueType.asInstanceOf[NFixedString].value.length() * typeLength
+    //this.length = valueType.asInstanceOf[NFixedString].value.length() * typeLength
+    this.length = fixedLength * typeLength
     
     true
   }
@@ -92,9 +93,11 @@ class NFixedString(s: String, typeLen: Short, fixedLen: Int) extends NValueType 
       case 1 => "EUC-KR"
       case _ => "UTF-16LE"
     }
+    
+    length = fixedLength * typeLength
      
     val stringValue = new Array[Byte](length)
-    data.copyToArray(stringValue, offset, length)
+    data.drop(offset).copyToArray(stringValue, 0, length)
     
     value = new String(stringValue, encoding)      
     

@@ -84,7 +84,7 @@ class NFloat(s: Float) extends NValueType {
     
     val arr = new Array[Byte](length) 
       
-    data.copyToArray(arr, offset, length)
+    data.drop(offset).copyToArray(arr, 0, length)
     
     if(bigEndian) {
       v = java.nio.ByteBuffer.wrap(arr).getFloat
@@ -100,5 +100,6 @@ class NFloat(s: Float) extends NValueType {
 
 object NFloat {
   def apply(s: Float) = new NFloat(s)
+  def apply(s: Double) = new NFloat(s.toFloat)
   def apply(s: NFloat) = new NFloat(s.value)
 }

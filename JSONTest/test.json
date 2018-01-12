@@ -29,6 +29,16 @@
 			"length" : "2",
 			"endian" : "big",
 			"type" : "String"
+		},
+		"fstring" : {
+			"length" : "2",
+			"endian" : "big",
+			"type" : "FixedString"
+		},
+		"float" : {
+			"length" : "4",
+			"endian" : "little",
+			"type" : "Float"
 		}
     },
     
@@ -56,7 +66,22 @@
 			},
 			"enum1" : {
 			"type" : "Enum1",
-			"size" : "2"
+			"size" : "1"
+			}
+		},
+		"Complex2" : {
+			"str1" : {
+			"type" : "wstring",
+			"size" : "1"
+			},
+			"str2" : {
+			"type" : "fstring",
+			"size" : "1",
+			"fixedLength" : "5"
+			},
+			"float1" : {
+			"type" : "float",
+			"size" : "1"
 			}
 		}
     },
@@ -73,8 +98,9 @@
 			"type" : "Complex1",
 			"size" : "1",
 			"fixedLength" : "1",
-			"indicator" : "2"
+			"indicator" : "0"
 		},
+		"msgID" : "1234",
 		"sharing" : "PublishSubscribe",
 		"alignment" : "none"
 		},
@@ -86,11 +112,12 @@
 			"indicator" : "0"
 			},
 			"field22" : {
-			"type" : "Complex1",
+			"type" : "Complex2",
 			"size" : "1",
 			"fixedLength" : "0",
 			"indicator" : "0"
 			},
+		"msgID" : "222",	
 		"sharing" : "PublishSubscribe",
 		"alignment" : "none"
 		}
@@ -110,6 +137,7 @@
 			"fixedLength" : "1",
 			"indicator" : "2"
 		},
+		"msgID" : "333",
 		"sharing" : "PublishSubscribe",
 		"alignment" : "none"
 		},
@@ -126,6 +154,7 @@
 			"fixedLength" : "0",
 			"indicator" : "0"
 			},
+		"msgID" : "444",
 		"sharing" : "PublishSubscribe",
 		"alignment" : "none"
 		}

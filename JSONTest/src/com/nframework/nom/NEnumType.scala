@@ -71,6 +71,8 @@ class NEnumType extends NDataType {
     
     et.name = this.name
     et.path = path
+    et.length = length
+    et.indicator = indicator
     et.setSize(size)
     
     for(i <- (0 to size - 1)) et.enumList(i) = enumList(i)
@@ -82,7 +84,7 @@ class NEnumType extends NDataType {
   }
   
   def isLeaf() : Boolean = {
-    false
+    true
   }
   
   def setSize(n: Int) {
@@ -91,9 +93,9 @@ class NEnumType extends NDataType {
   
   def resize(n: Int) {
     if(size > n) {
-      enumList.dropRight(size - n)
+      enumList = enumList.dropRight(size - n)
     } else {
-      for(i <- (size to n)) enumList += enumList(0) 
+      for(i <- (size to n - 1)) enumList += enumList(0) 
     }
   }
   
@@ -143,7 +145,7 @@ class NEnumType extends NDataType {
       val bb = java.nio.ByteBuffer.allocate(valueLength)
       bb.putInt(value)
       
-      var buffer = bb.array()
+      var buffer = bb.array().reverse
       
       buffer.copyToArray(data, off)
       off += valueLength
@@ -175,7 +177,7 @@ class NEnumType extends NDataType {
     for(i <- (0 to size-1)) {    
       val arr = new Array[Byte](valueLength) 
         
-      data.copyToArray(arr, off, len)
+      data.drop(off).copyToArray(arr, 0, this.length)
            
       value = java.nio.ByteBuffer.wrap(arr.reverse).getInt
       
@@ -283,7 +285,9 @@ class NEnumType extends NDataType {
   private var enumValueMap = collection.mutable.HashMap.empty[Int, NEnumerator]
   var length: Int = 0
   var enumList: ListBuffer[NEnumerator] = new ListBuffer
-    
+  
+  enumList += NEnumerator("", 0)
+  
   size = 1
   indicator = 0
 }
