@@ -104,6 +104,34 @@ object ExList {
     case Cons(x, xs) => Cons(x, init(xs))
     case Nil => Nil
   }
+
+  def foldRight[A, B](as: ExList[A], z: B)(f: (A, B) => B): B = as match {
+    case Nil => z
+    case Cons(x, xs) => f(x, foldRight(xs, z)(f))
+  }
+
+  def sum2(ns: ExList[Int]) = foldRight(ns, 0)((x, y) => x + y)
+
+  def product2(ns: ExList[Double]) = foldRight(ns, 1.0)(_ * _)
+
+  def length[A](as: ExList[A]): Int = foldRight(as, 0)((_, n) => n + 1)
+
+  def foldLeft[A, B](as: ExList[A], z: B)(f: (B, A) => B): B = as match {
+    case Nil => z
+    case Cons(x, xs) => foldLeft(xs, f(z, x))(f)
+  }
+
+  def sum3(ns: ExList[Int]) = foldLeft(ns, 0)(_ + _)
+
+  def product3(ns: ExList[Int]) = foldLeft(ns, 1)(_ * _)
+
+  def length3[A](as: ExList[A]): Int = foldLeft(as, 0)((n, _) => n + 1)
+
+  def reverse[A](as: ExList[A]): ExList[A] = foldLeft(as, Nil: ExList[A])((acc, h) => Cons(h, acc))
+
+  def append[A](l: ExList[A], r: ExList[A]): ExList[A] = foldRight(l, r)(Cons(_, _))
+
+  def flatten[A](l: ExList[ExList[A]]): ExList[A] = foldRight(l, Nil: ExList[A])(append)
 }
 
 
@@ -134,4 +162,16 @@ object CafeTest extends App {
   println("lists dropWhile(n < 2) : " + ExList.dropWhile(lists, proc))
 
   println("lists init : " + ExList.init(lists))
+  println("lists foldRight with Cons. It's original lists. : " 
+    + ExList.foldRight(lists, Nil:ExList[Int])(Cons(_,_)))
+
+  println("lists length : " + ExList.length(lists))
+
+  println("foldLeft sum : " + ExList.sum3(lists))
+  println("foldLeft product : " + ExList.product3(lists))
+  println("foldLeft length : " + ExList.length3(lists))
+
+  println("lists reverse : " + ExList.reverse(lists))
+  println("lists append : " + ExList.append(lists, ExList(6,7,8,9,10)))
+  println("lists flatten : " + ExList.flatten(ExList(lists, ExList(6,7), ExList(8,9,10))))
  }
