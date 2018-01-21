@@ -139,16 +139,12 @@ object CafeTest extends App {
   Cafe.buyCoffee(CreditCard("VISA"))
 //  Cafe.buyCoffees(CreditCard("America Express"), 10)
 
-  /// 만약 우리 가게는 항상 VISA 카드만 받는다면 이것을 부분함수로 만들면 된다.
+  /// 만약 우리 가게는 항상 VISA 카드만 받는다면 이것을 부분적용함수로 만들면 된다.
   val buyCoffeesWithVISA = Cafe.buyCoffees(CreditCard("VISA"), _: Int)
   buyCoffeesWithVISA(10)
 
-  /// 손님이 5 잔을 주문했는데, 결재는 나갈때 한다고 하면(?) 커링을 사용한다.
-  val buyFiveCoffees = Cafe.buyCoffeesWithCurring(_: CreditCard)(5)
-  buyFiveCoffees(CreditCard("America Express"))
-
-  /// 아니면 선결재하고 커피는 사람들이 오면 만들어 달라고 할 때에도 커링이 효과적이다.
-  val buyCoffeesPrepayment = Cafe.buyCoffeesWithCurring(CreditCard("법인"))(_: Int)
+  /// 결재부터 하는 상황에서는 커링이 효과적이다.
+  val buyCoffeesPrepayment = Cafe.buyCoffeesWithCurring(CreditCard("법인")) _
   buyCoffeesPrepayment(20)
 
   //  chap3 ex
