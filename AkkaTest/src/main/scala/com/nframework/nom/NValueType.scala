@@ -1,5 +1,15 @@
 package com.nframework.nom
 
+sealed abstract class NOM
+
+/**
+  *
+  * @param name Pub/Sub 통신 간 사용할 메시지 이름
+  * @param objID  Object type 에 대해 개별 객체 구분을 위해 사용
+  * @param data 직렬화 데이터
+  */
+case class NMessage(name: String, objID: Int, data: Array[Byte]) extends NOM
+
 object EDataType extends Enumeration {
   val INVALID = Value(0)
   val BOOL = Value
@@ -20,9 +30,6 @@ object EDataType extends Enumeration {
 
 
 trait NValueType {
-  var path = ""
-  var nom: NOM = null
-
   var bigEndian = false
   var signed = true
   var length = 0

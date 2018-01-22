@@ -3,7 +3,7 @@ package com.nframework
 import akka.actor.{Actor, ActorIdentity, ActorRef, ActorSelection, ActorSystem, Identify, Props, Timers}
 import com.nframework.Serializer._
 import com.nframework.Serializer.NomSerializer._
-import com.nframework.ControlManager.{DiscoverMap, TickKey, Update, UpdateMap}
+import com.nframework.ControlManager.{subsMap, TickKey, Update, pubsMap}
 import com.nframework.mec.MEC_Proto.PubSubInfoForwarding
 import com.nframework.mec._
 import com.nframework.nom._
@@ -25,9 +25,8 @@ object ControlManager {
   private object TickKey
   private object Update
 
-  //  multi-Map 을 사용하는 것보다 Tuple key 를 사용하는 것이 가독성에 더 유리할 것으로 판단되어 변경한다.
-  var DiscoverMap = Map.empty[(String, Int), NomSerializable]
-  var UpdateMap = Map.empty[(String, Int), NomSerializable]
+  var subsMap = Map.empty[(String, Int), NomSerializable]
+  var pubsMap = Map.empty[(String, Int), NomSerializable]
 }
 
 
@@ -58,7 +57,7 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
     RegisterMessage(power1, 1)
     RegisterMessage(power2, 2)
 
-    println("UpdateMap --> " + UpdateMap)
+    println("pubsMap --> " + pubsMap)
 
     timers.startPeriodicTimer(TickKey, Update, 10.millisecond)
   }
@@ -78,7 +77,7 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
       DeleteMessage("PowerOn", 1)
       DeleteMessage("PowerOn", 2)
 
-      println("UpdateMap --> " + UpdateMap)
+      println("pubsMap --> " + pubsMap)
     }
 
     updateValue += 1
@@ -90,23 +89,23 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
     //  Discover를 위해 객체 생성을 담당하는 객체(User Manager)에서 NOM schema 를 이용하여 인스턴스를 일관성 있게 생성해야 한다.
     case DiscoverMsg(msg) =>
       println("[Control Manager] discover msg received. " + msg)
-      DiscoverMap = DiscoverMap.updated((msg.name, msg.objID), nomDeserializer(getDefaultNOMSerializable(msg.name), msg.data))
-      println("DiscoverMap: " + DiscoverMap)
+      subsMap = subsMap.updated((msg.name, msg.objID), nomDeserializer(getDefaultNom(msg.name), msg.data))
+      println("subsMap: " + subsMap)
 
     case ReflectMsg(msg) =>
       println("[Control Manager] Reflect msg received. " + msg)
-      DiscoverMap = DiscoverMap.updated((msg.name, msg.objID), nomDeserializer(DiscoverMap(msg.name, msg.objID), msg.data))
-      println("DiscoverMap: " + DiscoverMap)
+      subsMap = subsMap.updated((msg.name, msg.objID), nomDeserializer(subsMap(msg.name, msg.objID), msg.data))
+      println("subsMap: " + subsMap)
 
     case RecvMsg(msg) =>
       println("[Control Manager] Recv msg received. " + msg)
-      val event = nomDeserializer(getDefaultNOMSerializable(msg.name), msg.data)
+      val event = nomDeserializer(getDefaultNom(msg.name), msg.data)
       println(event)
 
     case RemoveMsg(msg) =>
       println("[Control Manager] Remove msg received. " + msg)
-      DiscoverMap = DiscoverMap - ((msg.name, msg.objID))
-      println("DiscoverMap: " + DiscoverMap)
+      subsMap = subsMap - ((msg.name, msg.objID))
+      println("subsMap: " + subsMap)
 
     case Update => update()
 
@@ -119,15 +118,15 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
   //  Wrapper
   def RegisterMessage(s: NomSerializable, id: Int): Unit = {
     mec ! RegisterMsg(NMessage(s.getName(), id, nomObjectTypeSerializer(s, 0xFFFFFFFF)))
-    UpdateMap = UpdateMap.updated((s.getName(), id), s)
+    pubsMap = pubsMap.updated((s.getName(), id), s)
   }
 
   //  default parameter 는 부분 직렬화를 지원한다.
   def UpadteMessage(s: NomSerializable, objId: Int, partialSerialization: Boolean = true): Unit = {
-    if (partialSerialization == true) {
-      val updateFlag = compareObject(UpdateMap(s.getName(), objId), s)
+    if (partialSerialization) {
+      val updateFlag = compareObject(pubsMap(s.getName(), objId), s)
       mec ! UpdateMsg(NMessage(s.getName(), objId, nomObjectTypeSerializer(s, updateFlag)))
-      UpdateMap = UpdateMap.updated((s.getName(), objId), s)
+      pubsMap = pubsMap.updated((s.getName(), objId), s)
     }
     else
       mec ! UpdateMsg(NMessage(s.getName(), objId, nomObjectTypeSerializer(s, 0xFFFFFFFF)))
@@ -135,7 +134,7 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
 
   def DeleteMessage(msgName: String, objId: Int): Unit = {
     mec ! DeleteMsg(NMessage(msgName, objId, Array[Byte]()))
-    UpdateMap = UpdateMap - ((msgName, objId))
+    pubsMap = pubsMap - ((msgName, objId))
   }
 }
 

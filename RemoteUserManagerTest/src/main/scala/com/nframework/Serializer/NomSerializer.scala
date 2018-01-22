@@ -13,7 +13,7 @@ trait NomSerializable extends Product {
 
   def getName(): String = getClass().getSimpleName   /// 반환값은 nom parser 에서 관리하는 object type key 로 사용
 
-  def getValues(): List[NValueType] =  flatObjs(this).map{ x => convertObj(x) }  /// extractor
+  def getNValues(): List[NValueType] =  flatObjs(this).map{ x => convertNValue(x) }  /// extractor
 }
 
 
@@ -24,14 +24,13 @@ object NomSerializer {
 
 
   def nomSerializer(schema: Map[String, Object_Proto], s: NomSerializable, updateFlag: Int): Array[Byte] = {
-    val noms = getNOM(schema(s.getName())) zip s.getValues()
+    val nValues = s.getNValues()
     var marker = 1
 
-    noms.map{ x =>
+    nValues.map{ x =>
       if ((updateFlag & marker) == marker) {
         marker = marker << 1
-        x._1.setValue(x._2)
-        x._1.serialize()._1
+        x.serialize()._1
       }
       else {
         marker = marker << 1
@@ -44,18 +43,18 @@ object NomSerializer {
   def nomDeserializer(s: NomSerializable, data: Array[Byte]): NomSerializable = {
     var offset = 0
     var lists = ListBuffer.empty[AnyRef]
-    val bar = NInteger(0)
+    val flag = NInteger(0)
 
-    offset += bar.deserialize(data, offset)
-    var updateFlag = convertNValue(bar).asInstanceOf[Int]
+    offset += flag.deserialize(data, offset)
+    var updateFlag = convertObj(flag).asInstanceOf[Int]
 
     var marker = 1
 
-    s.getValues().foreach { x =>
+    s.getNValues().foreach { x =>
       if ((updateFlag & marker) == marker)
         offset += x.deserialize(data, offset)
 
-      lists += convertNValue(x).asInstanceOf[AnyRef]
+      lists += convertObj(x).asInstanceOf[AnyRef]
       marker = marker << 1
     }
 
@@ -63,68 +62,30 @@ object NomSerializer {
       case m: NomSerializable =>
         val (obj, other) = lists.splitAt(m.productArity)
         lists = other
-        makeNomSerializable(m.getName(), obj.toList).asInstanceOf[AnyRef]
+        makeNom(m.getName(), obj.toList).asInstanceOf[AnyRef]
       case m: Any => lists.remove(0)
     }
 
-    makeNomSerializable(s.getName(), args)
+    makeNom(s.getName(), args)
   }
 
 
-  def makeNomSerializable(name: String, args: List[AnyRef]): NomSerializable = {
+  def makeNom(name: String, args: List[AnyRef]): NomSerializable = {
     val constructor = Class.forName("com.nframework." + name).getConstructors()(0)
     constructor.newInstance(args:_*).asInstanceOf[NomSerializable]
   }
 
 
-  //  NOM schema 정보를 기반으로 NOM 객체를 생성한다. 이 정보는 NMessage 내 NOM 객체를 직렬화하는데 사용한다.
-  def getBasicTypeNOM(primitive: String): NValueType = {
-    primitive match {
-      case "Bool" => NBool(false)
-      case "Byte" => NByte(0.toByte)
-      case "Char" => NChar('A')
-      case "Double" => NDouble(0.0)
-      case "Float" => NFloat(0.0f)
-      case "Integer" => NInteger(0)
-      case "Short" => NShort(0.toShort)
-      case "String" => NString("")
-      case _ => println("[NOM parser] getBasicTypeNOM fail! unknown type."); NInteger(0)
-    }
-  }
-
-
-  def getEnumTypeNOM(enums: Map[String, Int]): List[NValueType] = {
-    val nom = for (e <- enums) yield NEnum(e._1, e._2)
-    nom.toList
-  }
-
-
-  def getComplexTypeNOM(models: Seq[(String, TypeModel, Int, Int)]): List[NValueType] = {
-    val nom = for (m <- models) yield getNValue(m._2, m._3)
-    nom.flatten.toList
-  }
-
-
-  def getNOM(object_proto: Object_Proto): List[NValueType] = {
-    val nom = for (f <- object_proto.fields) yield getNValue(f.model, f.size)
-    nom.flatten
-  }
-
-
-  def getNValue(t: TypeModel, size: Int): List[NValueType] = {
-    t match {
-      case z: BasicType_Proto => {for (i <- 1 to size) yield getBasicTypeNOM(z.primitive)}.toList
-      case z: EnumType_Proto => {for (i <- 1 to size) yield getEnumTypeNOM(z.enums)}.toList.flatten
-      case z: ComplexType_Proto => {for (i <- 1 to size) yield getComplexTypeNOM(z.models)}.toList.flatten
-    }
-  }
-
-
   //  NOM schema 정보를 기반으로 NOMSerializable 객체를 생성한다. 이 정보는 DiscoverMap 에 등록할 기본 객체 정보를 반환한다.
-  def getBasicTypeNOMSerializable(primitive: String): AnyRef = {
+  def getBasicType(primitive: String): AnyRef = {
     primitive match {
-      case "Integer" => 0.asInstanceOf[AnyRef]
+      case "Bool" => false.asInstanceOf[AnyRef]
+      case "Byte" => 0.toByte.asInstanceOf[AnyRef]
+      case "Char" => 'A'.asInstanceOf[AnyRef]
       case "Double" => 0.0.asInstanceOf[AnyRef]
+      case "Float" => 0.0f.asInstanceOf[AnyRef]
+      case "Integer" => 0.asInstanceOf[AnyRef]
+      case "Short" => 0.toShort.asInstanceOf[AnyRef]
       case "String" => "".asInstanceOf[AnyRef]
 
       case _ => println("[NOM parser] getBasicTypeNOMSerializable fail! unknown type." + primitive); 0.asInstanceOf[AnyRef]
@@ -132,12 +93,12 @@ object NomSerializer {
   }
 
 
-  def getEnumTypeNOMSerializable(enums: Map[String, Int]): List[AnyRef] = {
+  def getEnumType(enums: Map[String, Int]): List[AnyRef] = {
     (for (e <- enums) yield e._2.asInstanceOf[AnyRef]).toList
   }
 
 
-  def getComplexTypeNOMSerializable(name: String, models: List[(String, TypeModel, Int, Int)]): NomSerializable = {
+  def getComplexType(name: String, models: List[(String, TypeModel, Int, Int)]): NomSerializable = {
     val args = models.flatMap{
       case (_, model, size, ind) =>
         for {
@@ -145,17 +106,18 @@ object NomSerializer {
           if ind == i
         } yield {
           model match {
-            case z: BasicType_Proto => { for (i <- 1 to size) yield getBasicTypeNOMSerializable(z.primitive) }.toList
-            case z: EnumType_Proto => { for (i <- 1 to size) yield getEnumTypeNOMSerializable(z.enums) }.flatten
+            case z: BasicType_Proto => { for (i <- 1 to size) yield getBasicType(z.primitive) }.toList
+            case z: EnumType_Proto => { for (i <- 1 to size) yield getEnumType(z.enums) }.flatten
           }
         }
     }.flatten
 
-    makeNomSerializable(name, args)
+    makeNom(name, args)
   }
 
 
-  def getDefaultNOMSerializable(msgName: String): NomSerializable = {
+  def getDefaultNom(msgName: String): NomSerializable = {
+    //  todo: OrElse 후 interactionTypes 에 대한 getOrElse 처리
     val object_proto = objectTypes.getOrElse(msgName, interactionTypes(msgName))
 
     val args = { for {
@@ -165,17 +127,17 @@ object NomSerializer {
     } yield {
       f.model match {
         case z: BasicType_Proto => {for (i <- 1 to f.size)
-          yield getBasicTypeNOMSerializable(z.primitive)}
+          yield getBasicType(z.primitive)}
 
         case z: EnumType_Proto => {for (i <- 1 to f.size)
-          yield getEnumTypeNOMSerializable(z.enums)}
+          yield getEnumType(z.enums)}
 
         case z: ComplexType_Proto => {for (i <- 1 to f.size)
-          yield getComplexTypeNOMSerializable(f.modelName, z.models).asInstanceOf[AnyRef]}
+          yield getComplexType(f.modelName, z.models).asInstanceOf[AnyRef]}
       }
     }}.toList.flatten
 
-    makeNomSerializable(msgName, args)
+    makeNom(msgName, args)
   }
 
 
@@ -184,7 +146,7 @@ object NomSerializer {
     var updateFlag = 0
     var marker = 1
 
-    val bar = old.getValues().map{x => convertNValue(x)} zip now.getValues().map{x => convertNValue(x)}
+    val bar = old.getNValues().map{x => convertObj(x)} zip now.getNValues().map{x => convertObj(x)}
     bar.foreach{ x =>
       if (x._1 != x._2) updateFlag += marker
 
@@ -204,7 +166,7 @@ object NomSerializer {
   }
 
 
-  def convertObj(o: Any): NValueType = {  //  todo: NValueType 도 Nil 을 지원해야 할 듯
+  def convertNValue(o: Any): NValueType = {  //  todo: NValueType 도 Nil 을 지원해야 할 듯
     o match {
       case m: Boolean => NBool(m)
       case m: Byte => NByte(m)
@@ -214,23 +176,23 @@ object NomSerializer {
       case m: Int => NInteger(m)
       case m: Short => NShort(m)
       case m: String => NString(m)
-      case _ => println("convertObj error!!! " + o); NBool(false)
+      case _ => println("convertNValue error!!! " + o); NBool(false)
     }
   }
 
 
-  def convertNValue(nom: NValueType): Any = {
-    nom match {
-      case m: NBool => nom.toShort()  //  abstract method toBool() need...
-      case m: NByte => nom.toByte()
-      case m: NChar => nom.toChar()
-      case m: NDouble => nom.toDouble()
-      case m: NFloat => nom.toFloat()
-      case m: NInteger => nom.toInt()
-      case m: NShort => nom.toShort()
-      case m: NString => nom.toString()
+  def convertObj(n: NValueType): Any = {
+    n match {
+      case m: NBool => n.toShort()  //  abstract method toBool() need...
+      case m: NByte => n.toByte()
+      case m: NChar => n.toChar()
+      case m: NDouble => n.toDouble()
+      case m: NFloat => n.toFloat()
+      case m: NInteger => n.toInt()
+      case m: NShort => n.toShort()
+      case m: NString => n.toString()
 
-      case _ => println("[NOM parser] nValueMatcher fail! unknown type : " + nom); Nil
+      case _ => println("[NOM parser] convertObj fail! unknown type : " + n); Nil
     }
   }
 }
