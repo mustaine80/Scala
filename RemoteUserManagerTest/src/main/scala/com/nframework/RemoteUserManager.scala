@@ -89,17 +89,17 @@ class ControlManager(meb: ActorRef) extends Actor with Timers {
     //  Discover를 위해 객체 생성을 담당하는 객체(User Manager)에서 NOM schema 를 이용하여 인스턴스를 일관성 있게 생성해야 한다.
     case DiscoverMsg(msg) =>
       println("[Control Manager] discover msg received. " + msg)
-      subsMap = subsMap.updated((msg.name, msg.objID), nomDeserializer(getDefaultNom(msg.name), msg.data))
+      subsMap = subsMap.updated((msg.name, msg.objID), deserializer(getDefaultNom(msg.name), msg.data))
       println("subsMap: " + subsMap)
 
     case ReflectMsg(msg) =>
       println("[Control Manager] Reflect msg received. " + msg)
-      subsMap = subsMap.updated((msg.name, msg.objID), nomDeserializer(subsMap(msg.name, msg.objID), msg.data))
+      subsMap = subsMap.updated((msg.name, msg.objID), deserializer(subsMap(msg.name, msg.objID), msg.data))
       println("subsMap: " + subsMap)
 
     case RecvMsg(msg) =>
       println("[Control Manager] Recv msg received. " + msg)
-      val event = nomDeserializer(getDefaultNom(msg.name), msg.data)
+      val event = deserializer(getDefaultNom(msg.name), msg.data)
       println(event)
 
     case RemoveMsg(msg) =>

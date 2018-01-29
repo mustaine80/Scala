@@ -19,11 +19,11 @@ trait NomSerializable extends Product {
 
 // !  변경된 데이터에 대해 기존 인스턴스 정보를 변경하지 않고 불변형의 신규 인스턴스를 생성하여 대체하는 전략을 사용한다.
 object NomSerializer {
-  val nomObjectTypeSerializer = nomSerializer(objectTypes, _: NomSerializable, _: Int)
-  val nomInteractionTypeSerializer = nomSerializer(interactionTypes, _: NomSerializable, 0xFFFFFFFF)
+  val nomObjectTypeSerializer = serializer(objectTypes, _: NomSerializable, _: Int)
+  val nomInteractionTypeSerializer = serializer(interactionTypes, _: NomSerializable, 0xFFFFFFFF)
 
 
-  def nomSerializer(schema: Map[String, Object_Proto], s: NomSerializable, updateFlag: Int): Array[Byte] = {
+  def serializer(schema: Map[String, Object_Proto], s: NomSerializable, updateFlag: Int): Array[Byte] = {
     val nValues = s.getNValues()
     var marker = 1
 
@@ -40,7 +40,7 @@ object NomSerializer {
   }
 
 
-  def nomDeserializer(s: NomSerializable, data: Array[Byte]): NomSerializable = {
+  def deserializer(s: NomSerializable, data: Array[Byte]): NomSerializable = {
     var offset = 0
     var lists = ListBuffer.empty[AnyRef]
     val flag = NInteger(0)
