@@ -207,7 +207,6 @@ object List {
   
   // 3.22
   def zipTwoList(a1: List[Int], a2: List[Int]): List[Int] = {
-    //@annotation.tailrec
     def loop(l1: List[Int], l2: List[Int]): List[Int] = {
       l1 match {
         case Nil => Nil
@@ -221,6 +220,29 @@ object List {
     }
     
     loop(a1, a2)
+  }
+  
+  def zipTwoListTail(a1: List[Int], a2: List[Int]): List[Int] = {
+    @annotation.tailrec
+    def loop(l1: List[Int], l2: List[Int], acc: List[Int]): List[Int] = {
+      l1 match {
+        case Nil => Nil
+        case Cons(h, Nil) => {
+          l2 match {
+            case Cons(h2, Nil) => append(acc, Cons(h + h2, Nil))
+            case _ => Nil
+          }
+        }
+        case Cons(h, t) => {
+          l2 match {
+            case Cons(h2, t2) => loop(tail(l1), tail(l2), append(acc, Cons(h + h2, Nil)) )
+            case _ => Nil
+          }
+        }
+      }
+    }
+    
+    loop(a1, a2, Nil:List[Int])
   }
 
   // 3.23
@@ -238,6 +260,29 @@ object List {
       }
       
       loop(a1, a2)
+  }
+  
+  def zipWithTail[A](a1: List[A], a2: List[A])(f: (A, A) => A): List[A] = {
+    @annotation.tailrec
+    def loop(l1: List[A], l2: List[A], acc: List[A]): List[A] = {
+      l1 match {
+        case Nil => Nil
+        case Cons(h, Nil) => {
+          l2 match {
+            case Cons(h2, Nil) => append(acc, Cons(f(h, h2), Nil))
+            case _ => Nil
+          }
+        }
+        case Cons(h, t) => {
+          l2 match {
+            case Cons(h2, t2) => loop(tail(l1), tail(l2), append(acc, Cons(f(h, h2), Nil)) )
+            case _ => Nil
+          }
+        }
+      }
+    }
+    
+    loop(a1, a2, Nil:List[A])
   }
 
   // 3.24
@@ -319,7 +364,9 @@ object Chapter03 extends App {
   
   // 3.22
   println(List.zipTwoList(List(1,2,3), List(4,5,6)) )
+  println(List.zipTwoListTail(List(1,2,3), List(4,5,6)) )
   
   // 3.23
   println(List.zipWith( List(1,2,3), List(4,5,6) )( _ + _ ))
+  println(List.zipWithTail( List(1,2,3), List(4,5,6) )( _ + _ ))
 }
