@@ -13,7 +13,8 @@ trait NomSerializable extends Product {
 
   def getName(): String = getClass().getSimpleName   /// 반환값은 nom parser 에서 관리하는 object type key 로 사용
 
-  def getNValues(): List[NValueType] =  flatObjs(this).map{ x => convertNValue(x) }  /// extractor
+  def getNValues(): List[NValueType] =  flatObjs(this).map{ x => convertNValue(x)
+    .getOrElse(throw new Exception("convertNValue fail : " + x)) }  /// extractor
 }
 
 
@@ -46,7 +47,7 @@ object NomSerializer {
     val flag = NInteger(0)
 
     offset += flag.deserialize(data, offset)
-    var updateFlag = convertObj(flag).asInstanceOf[Int]
+    var updateFlag = convertObj(flag).getOrElse(throw new Exception("deserializer's update flag convert error : " + flag)).asInstanceOf[Int]
 
     var marker = 1
 
@@ -54,7 +55,7 @@ object NomSerializer {
       if ((updateFlag & marker) == marker)
         offset += x.deserialize(data, offset)
 
-      lists += convertObj(x).asInstanceOf[AnyRef]
+      lists += convertObj(x).getOrElse(throw new Exception("deserializer's lists convert error : " + x)).asInstanceOf[AnyRef]
       marker = marker << 1
     }
 
@@ -77,18 +78,18 @@ object NomSerializer {
 
 
   //  NOM schema 정보를 기반으로 NOMSerializable 객체를 생성한다. 이 정보는 DiscoverMap 에 등록할 기본 객체 정보를 반환한다.
-  def getBasicType(primitive: String): AnyRef = {
+  def getBasicType(primitive: String): Option[AnyRef] = {
     primitive match {
-      case "Bool" => false.asInstanceOf[AnyRef]
-      case "Byte" => 0.toByte.asInstanceOf[AnyRef]
-      case "Char" => 'A'.asInstanceOf[AnyRef]
-      case "Double" => 0.0.asInstanceOf[AnyRef]
-      case "Float" => 0.0f.asInstanceOf[AnyRef]
-      case "Integer" => 0.asInstanceOf[AnyRef]
-      case "Short" => 0.toShort.asInstanceOf[AnyRef]
-      case "String" => "".asInstanceOf[AnyRef]
+      case "Bool" => Some(false.asInstanceOf[AnyRef])
+      case "Byte" => Some(0.toByte.asInstanceOf[AnyRef])
+      case "Char" => Some('A'.asInstanceOf[AnyRef])
+      case "Double" => Some(0.0.asInstanceOf[AnyRef])
+      case "Float" => Some(0.0f.asInstanceOf[AnyRef])
+      case "Integer" => Some(0.asInstanceOf[AnyRef])
+      case "Short" => Some(0.toShort.asInstanceOf[AnyRef])
+      case "String" => Some("".asInstanceOf[AnyRef])
 
-      case _ => println("[NOM parser] getBasicTypeNOMSerializable fail! unknown type." + primitive); 0.asInstanceOf[AnyRef]
+      case _ => None
     }
   }
 
@@ -106,7 +107,8 @@ object NomSerializer {
           if ind == i
         } yield {
           model match {
-            case z: BasicType_Proto => { for (i <- 1 to size) yield getBasicType(z.primitive) }.toList
+            case z: BasicType_Proto => { for (i <- 1 to size) yield getBasicType(z.primitive)
+              .getOrElse(throw new Exception("getComplexType's getBasicType error: " + z.primitive)) }.toList
             case z: EnumType_Proto => { for (i <- 1 to size) yield getEnumType(z.enums) }.flatten
           }
         }
@@ -127,7 +129,7 @@ object NomSerializer {
     } yield {
       f.model match {
         case z: BasicType_Proto => {for (i <- 1 to f.size)
-          yield getBasicType(z.primitive)}
+          yield getBasicType(z.primitive).getOrElse(throw new Exception("getDefaultNom's getBasicType error " + z.primitive))}
 
         case z: EnumType_Proto => {for (i <- 1 to f.size)
           yield getEnumType(z.enums)}
@@ -146,7 +148,9 @@ object NomSerializer {
     var updateFlag = 0
     var marker = 1
 
-    val bar = old.getNValues().map{x => convertObj(x)} zip now.getNValues().map{x => convertObj(x)}
+    val bar = old.getNValues().map{x => convertObj(x)
+      .getOrElse(throw new Exception("old value convertObj fail! unknown type : " + x))} zip now.getNValues()
+      .map{x => convertObj(x).getOrElse(throw new Exception("current value convertObj fail! unknown type : " + x))}
     bar.foreach{ x =>
       if (x._1 != x._2) updateFlag += marker
 
@@ -166,33 +170,35 @@ object NomSerializer {
   }
 
 
-  def convertNValue(o: Any): NValueType = {  //  todo: NValueType 도 Nil 을 지원해야 할 듯
+  //  todo: NBool()이 실패한다면?
+  def convertNValue(o: Any): Option[NValueType] = {
     o match {
-      case m: Boolean => NBool(m)
-      case m: Byte => NByte(m)
-      case m: Char => NChar(m)
-      case m: Double => NDouble(m)
-      case m: Float => NFloat(m)
-      case m: Int => NInteger(m)
-      case m: Short => NShort(m)
-      case m: String => NString(m)
-      case _ => println("convertNValue error!!! " + o); NBool(false)
+      case m: Boolean => Some(NBool(m))
+      case m: Byte => Some(NByte(m))
+      case m: Char => Some(NChar(m))
+      case m: Double => Some(NDouble(m))
+      case m: Float => Some(NFloat(m))
+      case m: Int => Some(NInteger(m))
+      case m: Short => Some(NShort(m))
+      case m: String => Some(NString(m))
+
+      case _ => None
     }
   }
 
 
-  def convertObj(n: NValueType): Any = {
+  def convertObj(n: NValueType): Option[Any] = {
     n match {
-      case m: NBool => n.toShort()  //  abstract method toBool() need...
-      case m: NByte => n.toByte()
-      case m: NChar => n.toChar()
-      case m: NDouble => n.toDouble()
-      case m: NFloat => n.toFloat()
-      case m: NInteger => n.toInt()
-      case m: NShort => n.toShort()
-      case m: NString => n.toString()
+      case m: NBool => Some(n.toShort())  //  todo: abstract method toBool() need...
+      case m: NByte => Some(n.toByte())
+      case m: NChar => Some(n.toChar())
+      case m: NDouble => Some(n.toDouble())
+      case m: NFloat => Some(n.toFloat())
+      case m: NInteger => Some(n.toInt())
+      case m: NShort => Some(n.toShort())
+      case m: NString => Some(n.toString())
 
-      case _ => println("[NOM parser] convertObj fail! unknown type : " + n); Nil
+      case _ => None
     }
   }
 }
