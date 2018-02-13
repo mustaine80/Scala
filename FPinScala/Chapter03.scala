@@ -291,6 +291,111 @@ object List {
   }
 }
 
+sealed trait Tree[+A]
+case class Leaf[A](value: A) extends Tree[A]
+case class Branch[A](left: Tree[A], right: Tree[A]) extends Tree[A]
+case object NilTree extends Tree[Nothing]
+
+object Tree {
+  // 3.25
+  def size[A](tree: Tree[A]): Int = {
+    def loop(t: Tree[A], acc: Int): Int = {
+      t match {
+        case Leaf(v) => acc + 1
+        case Branch(l, r) => loop(r, loop(l, acc)) + 1
+        case NilTree => acc
+      }
+    }
+    
+    loop(tree, 0)
+  }
+  
+  // 3.26
+  def max(tree: Tree[Int]): Int = {
+    def loop(t: Tree[Int], acc: Int): Int = {
+      t match {
+        case Leaf(v) => acc max v
+        case Branch(l, r) => loop(r, loop(l, acc))
+        case NilTree => acc
+      }
+    }
+    
+    loop(tree, 0)
+  }
+  
+  // 3.27
+  def depth[A](tree: Tree[A]): Int = {
+    def loop(t: Tree[A], acc: Int): Int =  {
+      t match {
+        case Leaf(v) => acc
+        case Branch(l, r) => loop(r, acc + 1) max loop(l, acc + 1)
+        case NilTree => acc
+      }
+    }
+    
+    loop(tree, 0)
+  }
+  
+  // 3.28
+  def map[A, B](tree: Tree[A])(f: A => B): Tree[B] = {
+    def loop(t: Tree[A]): Tree[B] = {
+      t match {
+        case Leaf(v) => Leaf(f(v))
+        case Branch(l, r) => Branch(loop(l), loop(r))
+        case NilTree => NilTree
+      }
+    }
+    
+    loop(tree)
+  }
+  
+  // 3.29  
+  def fold[A, B](tree: Tree[A], y:A, z: B)(f: (A, B) => B): B = {
+    tree match {
+      case Leaf(v) => f(v, z)
+      case Branch(l, r) => f(y, fold(l, y, fold(r, y, z)(f))(f) )
+      case NilTree => z
+    }
+  }
+  
+  // 아래 구현은 fold 시에 Branch 노드에 대해서는 f 가 적용이 되지 않음
+  // Branch에 대해서는 A 타입의 값을 추출할 방법이 없는데 다른 방식으로 구현해야 할듯
+  def fold[A, B](tree: Tree[A], z: B)(f: (A, B) => B): B = {
+    tree match {
+      case Leaf(v) => f(v, z)
+      case Branch(l, r) => fold(l, fold(r, z)(f))(f)
+      case NilTree => z
+    }
+  }
+  
+  def sizeUsingFold[A](tree: Tree[A]): Int = {
+    fold(tree, 0, 0)( (a, b) => b + 1)
+  }
+  
+  def maxUsingFold(tree: Tree[Int]): Int = {
+    fold(tree, 0, 0)( (a, b) => a max b)
+  }
+  
+  // Fold를 사용하여 Tree의 depth를 구현할 수 있는 것인가????
+  def depthUsingFold[A](tree: Tree[A]): Int = {    
+    0
+    //fold(tree, 0)( (a, b) => )
+  }
+    
+  // fold시에 접는 순서가 내부적으로 결정되기 때문에 map시에 원래 Tree의 구조를 그대로 되살릴 수가 없다.
+  // 다른 가능한 방법이 있는지?
+  def mapUsingFold[A, B](tree: Tree[A])(f: A => B): Tree[B] = {
+    fold(tree, NilTree:Tree[B])( (a: A, b: Tree[B]) => {
+      b match {
+        case NilTree => Branch( NilTree, Leaf(f(a)) )
+        case Branch( NilTree, r ) => Branch( Leaf(f(a)), r )
+        case Branch( l, r ) => Branch( Leaf(f(a)), b )
+        case Leaf(v)  => Leaf(f(a))
+      }
+    })
+  }
+}
+
 
 object Chapter03 extends App {
   // 3.1
@@ -369,4 +474,32 @@ object Chapter03 extends App {
   // 3.23
   println(List.zipWith( List(1,2,3), List(4,5,6) )( _ + _ ))
   println(List.zipWithTail( List(1,2,3), List(4,5,6) )( _ + _ ))
+  
+  
+  val tree = Branch( Branch( Leaf("a"), Leaf("b") ), Branch( Leaf("c"), Leaf("d") ) )
+  val itree = Branch( Branch( Branch( Leaf(5), Leaf(3) ), Branch( Leaf(1), Leaf(20) ) ), Branch( Leaf(1), Leaf(12) ) )
+  
+  // 3.24
+  println("size: " + Tree.size(itree))
+  
+  // 3.25
+  println("max: " + Tree.max(itree))
+  
+  // 3.26
+  println("depth: " + Tree.depth(itree))
+  println("depth : " + Tree.depth(tree))
+  
+  // 3.27
+  println(Tree.map(itree)(_ * 2) )
+  
+  // 3.28
+  println("sum(fold): " + Tree.fold(itree, 0, 0)(_ + _) )
+  println("min(fold): " + Tree.fold(itree, 10000, 10000)(_ min _) )
+  println("size(fold): " + Tree.sizeUsingFold(itree))
+  println("max(fold): " + Tree.maxUsingFold(itree))
+  println("map(fold): " + Tree.mapUsingFold(itree)(_ * 2))
+  println("depth: " + Tree.depth(Tree.mapUsingFold(itree)(_ * 2)))
+  // depthUsingFold는 구현 못함
+  
+ 
 }
