@@ -368,6 +368,13 @@ object Tree {
     }
   }
   
+  def fold2[A, B](tree: Tree[A])(f: A => B)(g: (B, B)=>B): B = {
+    tree match {
+      case Leaf(v) => f(v)
+      case Branch(l, r) => g( fold2(l)(f)(g), fold2(r)(f)(g) )
+    }
+  }
+  
   def sizeUsingFold[A](tree: Tree[A]): Int = {
     fold(tree, 0, 0)( (a, b) => b + 1)
   }
@@ -377,13 +384,14 @@ object Tree {
   }
   
   // Fold를 사용하여 Tree의 depth를 구현할 수 있는 것인가????
+  // Leaf에 대한 함수 f와 Branch에 대한 함수 g를 받는 fold2를 사용하여 구현 가능
   def depthUsingFold[A](tree: Tree[A]): Int = {    
-    0
-    //fold(tree, 0)( (a, b) => )
+    fold2(tree)((a) => 0)( (x, y) => (x + 1) max (y + 1) )
   }
     
   // fold시에 접는 순서가 내부적으로 결정되기 때문에 map시에 원래 Tree의 구조를 그대로 되살릴 수가 없다.
   // 다른 가능한 방법이 있는지?
+  // Leaf에 대한 함수 f와 Branch에 대한 함수 g를 받는 fold2를 사용하여 구현 가능(mapUsingFold2)
   def mapUsingFold[A, B](tree: Tree[A])(f: A => B): Tree[B] = {
     fold(tree, NilTree:Tree[B])( (a: A, b: Tree[B]) => {
       b match {
@@ -393,6 +401,10 @@ object Tree {
         case Leaf(v)  => Leaf(f(a))
       }
     })
+  }
+ 
+  def mapUsingFold2[A, B](tree: Tree[A])(f: A => B): Tree[B] = {
+    fold2(tree)(f andThen (Leaf(_).asInstanceOf[Tree[B]]) )( Branch(_,_) )
   }
 }
 
@@ -498,8 +510,13 @@ object Chapter03 extends App {
   println("size(fold): " + Tree.sizeUsingFold(itree))
   println("max(fold): " + Tree.maxUsingFold(itree))
   println("map(fold): " + Tree.mapUsingFold(itree)(_ * 2))
-  println("depth: " + Tree.depth(Tree.mapUsingFold(itree)(_ * 2)))
-  // depthUsingFold는 구현 못함
+  println("depth: " + Tree.depth(itree))
+  println("depth(map): " + Tree.depth(Tree.mapUsingFold(itree)(_ * 2)))
   
- 
+  // f, g 두 함수를 받는 fold2로 구현한 답
+  println("sum(fold2): " + Tree.fold2(itree)((a)=>a)(_+_))
+  println("size(fold2): " + Tree.fold2(itree)((a)=>1)(_ + _+1))
+  println("max(fold2): " + Tree.fold2(itree)((a)=>a)(_ max _))
+  println("map(fold2): " + Tree.mapUsingFold2(itree)(_ * 2))
+  print("depth(fold): " + Tree.depthUsingFold(itree))
 }
