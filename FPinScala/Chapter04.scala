@@ -123,6 +123,37 @@ object Chapter04 extends App {
   
   println("sequence(Some): " + seqs)
   println("sequence(None): " + seqn)
+  
+  // 4.5
+  val ll = List(2, 4, 6, 8)
+  val ll2 = List(1, 2, 3, 4, 5)
+  val olls = Option.traverse(ll)( n => n match {
+    case even if even % 2 == 0 => Some(even)
+    case _ => None
+  })
+  val olls2 = Option.traverse2(ll)( n => n match {
+    case even if even % 2 == 0 => Some(even)
+    case _ => None
+  })
+  val olln = Option.traverse(ll2)( n => n match {
+    case even if even % 2 == 0 => Some(even)
+    case _ => None
+  })
+  val olln2 = Option.traverse2(ll2)( n => n match {
+    case even if even % 2 == 0 => Some(even)
+    case _ => None
+  })
+  
+  val seqs_traverse = Option.sequenceUsingTraverse(ols)
+  val seqn_traverse = Option.sequenceUsingTraverse(oln)
+  
+  println("traverse(Some) : " + olls)
+  println("traverse2(Some) : " + olls2)
+  println("traverse(None) : " + olln)
+  println("traverse(None) : " + olln2)
+  
+  println("sequence_traverse(Some) : " + seqs_traverse)
+  println("sequence_traverse(None) : " + seqn_traverse)
 }
 
 object Option {
@@ -152,10 +183,14 @@ object Option {
   }
   
   def traverse2[A, B](as: List[A])(f: A => Option[B]): Option[List[B]] = {
-    None
+    Try(List.flatMap(as)(a => f(a) match {
+        case Some(v) => List(v)
+        case None => throw new Exception
+      })
+    )
   }
   
   def sequenceUsingTraverse[A](as: List[Option[A]]): Option[List[A]] = {
-    None
+    traverse2(as)(a => a)
   }
 }
