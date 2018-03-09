@@ -18,7 +18,7 @@ sealed trait Option[+A] {
   }
   
   def flatMapWithoutPatternMatch[B](f: A => Option[B]): Option[B] = {
-    None
+    this.map(f).getOrElse(None)
   }
   
   def getOrElse[B >: A](default: => B): B = {
@@ -28,7 +28,6 @@ sealed trait Option[+A] {
     }
   }
   
-  
   def orElse[B >: A](ob: => Option[B]): Option[B] = {
     this match {
       case Some(v) => this
@@ -37,7 +36,7 @@ sealed trait Option[+A] {
   }
   
   def orElseWithoutPatternMatch[B >: A](ob: => Option[B]): Option[B] = {
-    None
+    this.map( o => Some(o) ).getOrElse(ob)
   }
   
   def filter(f: A => Boolean): Option[A] = {
@@ -48,7 +47,7 @@ sealed trait Option[+A] {
   }
   
   def filterWithoutPatternMatch(f: A => Boolean): Option[A] = {
-    None
+    if(this.map(f).getOrElse(false)) this else None
   }
 }
 
@@ -64,15 +63,21 @@ object Chapter04 extends App {
   
   println("flatMap(Some): " + o1s.flatMap(a => Some(a*2)))
   println("flatMap(None): " + o1s.flatMap(a => None))
+  println("flatMapWOPM(Some): " + o1s.flatMapWithoutPatternMatch(a => Some(a*2)))
+  println("flatMapWOPM(None): " + o1s.flatMapWithoutPatternMatch(a => None))
   
   println("getOrElse(Some): " + o2s.getOrElse(0))
   println("getOrElse(None): " + o2n.getOrElse(0))
   
   println("orElse(Some): " + o2s.orElse(o3s))  // o2s
   println("orElse(None): " + o2n.orElse(o3s))  // o3s
+  println("orElseWOPM(Some): " + o2s.orElseWithoutPatternMatch(o3s))
+  println("orElseWOPM(None): " + o2n.orElseWithoutPatternMatch(o3s))
   
   println("filter(Some): " + o2s.filter(_ % 2 == 0))  // true
   println("filter(None): " + o2s.filter(_ % 2 == 1))  // false
+  println("filterWOPM(Some): " + o2s.filterWithoutPatternMatch(_ % 2 == 0))  // true
+  println("filterWOPM(None): " + o2s.filterWithoutPatternMatch(_ % 2 == 1))  // false
   
   // 4.2
   def variance(xs: Seq[Double]): Option[Double] = {
