@@ -131,19 +131,35 @@ object Either {
   }
   
   // 4.7
-  /*
   def sequence[E, A](es: List[Either[E, A]]): Either[E, List[A]] = {
-    val result: Either[Exception, List[A]] = Try( List.flatMap(es)(e => e match {
-      case Right(r) => List(r)
-      case Left(l) => throw new Exception("ERROR!")
-    }) )
+    case class MyException(e: E) extends Throwable
     
-    result
-  }*/
-  /*
+    try {
+      Right( List.flatMap(es)(e => e match {
+        case Right(r) => List(r)
+        case Left(l) => throw MyException(l)
+      }) )
+    } catch { case e: MyException => Left(e.e) }
+  }
+  
   def traverse[E, A, B](as: List[A])(f: A => Either[E, B]): Either[E, List[B]] = {
+    sequence(List.map(as)(f))  
+  }
+  
+  def traverse2[E, A, B](as: List[A])(f: A=> Either[E, B]): Either[E, List[B]] = {
+    case class MyException(e: E) extends Throwable
     
-  }*/
+    try {
+      Right( List.flatMap(as)(e => f(e) match {
+        case Right(r) => List(r)
+        case Left(l) => throw MyException(l)
+      }) )
+    } catch { case e: MyException => Left(e.e) }
+  }
+  
+  def sequenceUsingTraverse[E, A](es: List[Either[E, A]]): Either[E, List[A]] = {
+    traverse2(es)(a => a)
+  }
 }
 
 object Chapter04 extends App {
@@ -273,5 +289,30 @@ object Chapter04 extends App {
   println("map2(right+left): " + er.map2(el2)( (a, b) => a + b))
   println("map2(left+left): " + el.map2(el2)( (a, b) => a + b))
   println("map2(left+right): " + el.map2(er2)( (a, b) => a + b))
+  
+  // 4.7
+  val eseqr: List[Either[String, Int]] = List(Right(1), Right(2), Right(3), Right(4))
+  val eseql: List[Either[String, Int]] = List(Right(5), Right(6), Left("error!!!"), Right(7))
+  
+  println("sequence(right): " + Either.sequence(eseqr))
+  println("sequence(left): " + Either.sequence(eseql))
+  println("sequenceUsingTraverse(right): " + Either.sequenceUsingTraverse(eseqr))
+  println("sequenceUsingTraverse(left): " + Either.sequenceUsingTraverse(eseql))
+  println("traverse(right): " + Either.traverse(ll)(a => a match {
+    case e if a % 2 == 0 => Right(a)
+    case _ => Left("odd number")
+  }) )
+  println("traverse(left): " + Either.traverse(ll2)(a => a match {
+    case e if a % 2 == 0 => Right(a)
+    case _ => Left("odd number")
+  }) )
+  println("traverse2(right): " + Either.traverse2(ll)(a => a match {
+    case e if a % 2 == 0 => Right(a)
+    case _ => Left("odd number")
+  }) )
+  println("traverse2(left): " + Either.traverse2(ll2)(a => a match {
+    case e if a % 2 == 0 => Right(a)
+    case _ => Left("odd number")
+  }) )
 }
 
