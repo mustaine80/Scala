@@ -1,4 +1,4 @@
-import scala.math.pow
+
 
 trait ExOption[+A] {
   def exMap[B](f: A => B): ExOption[B] = this match {
@@ -18,7 +18,6 @@ trait ExOption[+A] {
     case ExNone => ob
   }
 
-  //  Option return 이 맞는건지 모르겠네...
   def exFilter(f: A => Boolean): ExOption[A] = this match {
     case ExSome(a) => if (f(a)) this else ExNone
     case ExNone => ExNone
@@ -82,17 +81,16 @@ object Bar {
     else Some(f(a.get, b.get))
   }
 
-  //  todo: hh 가 Option value 인데... 이게 어떻게 A type 이 되는 건가?
   def sequence[A](a: List[Option[A]]): Option[List[A]] = a match {
-    case Nil => Some(Nil)
     case h :: t => h flatMap (hh => sequence(t) map (hh :: _))
+    case _ => Some(List[A]())
   }
 
   def parseInts(a: List[String]): Option[List[Int]] =
     sequence(a map (i => Try(i.toInt)))
 
   def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = 
-    sequence(a map f)  
+    sequence(a map f)
 }
 
 
@@ -113,8 +111,6 @@ object FP_Chap4 extends App {
   val oe = List(ExNone, ExSome(1), ExNone)
   def foo(a: Int): ExOption[Int] = if (a %2 == 0) ExSome(a) else ExNone
 
-  //  todo: 실제 Option 구현도 다를게 없는데 그건 왜 List 가 적용이 되는건가?
-  //  @inline final def map[B](f: A => B): Option[B] = if (isEmpty) None else Some(f(this.get))
   println("lists map apply (_ + 1) => " + s.map(ExSome(_).exMap(_ + 1)))
   println("lists flatMap apply 'even number' => " + s.map(ExSome(_).exFlatMap(x => foo(x))))
   println("lists getOrElse apply 'even number' => " + s.map(ExSome(_).exFlatMap(x => foo(x)).exGetOrElse(0)))
