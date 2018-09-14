@@ -113,14 +113,16 @@ sealed trait Stream[+A] {
     this.foldRight(Empty:Stream[B])( (a, b) => f(a).append(b) )
   } 
   
-  /*
+  
   // 5.13
   def mapUsingUnfold[B](f: A => B): Stream[B] = {
-    Stream.unfold(z)(f)
+    Stream.unfold(this)(s => s match {
+      case Cons(h, t) => Some(f(h()), t())
+      case _ => None
+    })
   }
-  
-  def takeUsingUnfold(n: Int): Stream[A] = {
-    
+  /*
+  def takeUsingUnfold(n: Int): Stream[A] = {    
   }
   
   def takeWhileUsingUnfold(p: A => Boolean): Stream[A] = {
@@ -266,7 +268,7 @@ object Chapter05 extends App {
   
   // 5.7
   val m1 = s1.map(_ * 3).toList
-  println("5.7) map :" + m1)
+  println("5.7) map: " + m1)
   val f1 = s1.filter(_ % 2 == 0).toList
   println("5.7) filter : " + f1)
   //println(Stream(1,2,3,4).map(_+10).filter(_%2==0).toList)
@@ -306,4 +308,8 @@ object Chapter05 extends App {
   println("5.12) constant(unfold): " + const2.take(4).toList)
   val ones2 = Stream.onesUsingUnfold()
   println("5.12) ones(unfold) : " + ones2.take(5).toList)
+  
+  // 5.13
+  val m2 = s1.mapUsingUnfold(_ * 3).toList
+  println("5.13) map: " + m2)
 }
