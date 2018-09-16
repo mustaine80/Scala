@@ -121,16 +121,28 @@ sealed trait Stream[+A] {
       case _ => None
     })
   }
+  
+  def takeUsingUnfold(n: Int): Stream[A] = {
+    Stream.unfold( (this, n) )(tt => if(tt._2 > 0) {
+      tt._1 match {
+        case Cons(h, t) => Some(h(), (t(), tt._2 - 1))
+        case _ => None
+      }
+      } else {
+        None
+    })
+  }
+  
+  def takeWhileUsingUnfold(f: A => Boolean): Stream[A] = {
+    Stream.unfold(this)(s => s match {
+      case Cons(h, t) => if(f(h())) Some(h(), t()) else None
+      case _ => None
+      }
+    )
+  }
   /*
-  def takeUsingUnfold(n: Int): Stream[A] = {    
-  }
-  
-  def takeWhileUsingUnfold(p: A => Boolean): Stream[A] = {
-    
-  }
-  
   def zipWith(s2: Stream[A])(f: (A, A) => A): Stream[A] = {
-    
+      
   }
   
   def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] = {
@@ -312,4 +324,8 @@ object Chapter05 extends App {
   // 5.13
   val m2 = s1.mapUsingUnfold(_ * 3).toList
   println("5.13) map: " + m2)
+  val take3 = s1.takeUsingUnfold(3)
+  println("5.13) take(unfold) : " + take3.toList)
+  val takew4 = s1.takeWhileUsingUnfold(_ != 4)
+  println("5.13) takeWhile(unfold) : " + takew4.toList)
 }
