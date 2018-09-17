@@ -116,22 +116,25 @@ case class Right[+A](value: A) extends ExEither[Nothing, A]
 //  Todo. 레이더 탐지 모델 구현을 FP 답게 개선해 보자.
 case class Track(id: Int, pos: Double, vel: Double)
 
-trait SurveillanceModel[Track] {
-  def checkAvail(t: Track): Boolean = true
+trait SurveillanceModel[+T] {
+  def checkAvail(t: T): Boolean = true
 
-  def checkRange(t: Track): Boolean = true
+  def checkRange(t: T): Boolean = true
 
-  def checkDetect(t: Track): Boolean = true
+  def checkDetect(t: T): Boolean = true
 
-  def updateTrack(t: Track): Track = t
+  def updateTrack(t: T): Track = t
 }
 
-case class RM[Track](scanPeriod: Double, scanRegion: Double, ts: Seq[Track]) extends SurveillanceModel[Track] {
+case class RM(scanPeriod: Double, scanRegion: Double, ts: Seq[Track]) extends SurveillanceModel[Track] {
   def tracking = ts.filter(checkAvail(_)).filter(checkRange(_)).filter(checkDetect(_)).map(updateTrack(_))
 }
 
-case class ECM[Track](scanPeriod: Double, scanRegion: Double, ts: Seq[Track]) extends SurveillanceModel[Track] {
-  def ecmDetect(t: Track): ExOption[Track] = ExSome(t)   // todo. Track type 을 왜 인식하지 못하는걸까?
+case class ECM(scanPeriod: Double, scanRegion: Double, ts: Seq[Track]) extends SurveillanceModel[Track] {
+  def ecmDetect(t: Track): ExOption[Track] = {
+    if (t.id % 2 == 0) ExNone
+    else ExSome(t)
+  }
 
   //  Option 문맥에서 기존 함수 재활용
   def tracking = ts.map(ecmDetect(_).exFilter(checkAvail(_)).exFilter(checkRange(_)).exFilter(checkDetect(_)).
