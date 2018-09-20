@@ -178,9 +178,17 @@ sealed trait Stream[+A] {
       case _ => None
     })
   }
-  
+    
   def hasSubsequence[A](s: Stream[A]): Boolean = { 
     tails exists (_ startsWith s)
+  }
+  
+  // 5.16 (difficult)
+  def scanRight[B](z: B)(f: (A, => B) => B): Stream[B] = {
+    Stream.unfold( tails )( ss => ss match { 
+      case Cons(h, t) => Some( (h().foldRight(z)(f), t()) )
+      case _ => None
+    })
   }
 }
 case object Empty extends Stream[Nothing]
@@ -366,4 +374,19 @@ object Chapter05 extends App {
   println("5.13) zipWith : " + zip.toList)
   val zipAll = s1.zipAll(Stream(5, 4, 3, 2, 1, 0))
   println("5.13) zipAll : " + zipAll.toList)
+  
+  // 5.14
+  val s123 = Stream(1, 2, 3)
+  val s456 = Stream(4, 5, 6)
+  println("5.14) " + s1.toList + " startsWith " + s123.toList + "? => " + s1.startsWith(s123))
+  println("5.14) " + s1.toList + " startsWith " + s456.toList + "? => " + s1.startsWith(s456))
+  
+  // 5.15
+  val tails = s1.tails
+  println("5.15) " + tails.map(_.toList).toList)
+  
+  println("hasSubsequence : " + s1.hasSubsequence(Stream(3, 4)))  
+  
+  // 5.16
+  println("5.16) scanRight : " + s1.scanRight(1)(_ + _).toList)
 }
