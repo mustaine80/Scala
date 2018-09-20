@@ -140,14 +140,22 @@ sealed trait Stream[+A] {
       }
     )
   }
-  /*
-  def zipWith(s2: Stream[A])(f: (A, A) => A): Stream[A] = {
-      
+  
+  def zipWith[B, C](s2: Stream[B])(f: (A, B) => C): Stream[C] = {
+    Stream.unfold( (this, s2) )( tt => tt match {
+      case ( Cons(h, t), Cons(h2, t2) ) => Some( f(h(), h2()), (t(), t2()) )
+      case _ => None
+    })
   }
   
   def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] = {
-    
-  } */
+    Stream.unfold( (this, s2) )( tt => tt match {
+      case ( Cons(h, t), Cons(h2, t2) ) => Some( (Some(h()), Some(h2())), (t(), t2()) )
+      case ( Cons(h, t), Empty ) => Some( (Some(h()), None), (t(), Empty) )
+      case ( Empty, Cons(h2, t2) ) => Some( (None, Some(h2())), (Empty, t2()) )
+      case ( Empty, Empty ) => None
+    })
+  }
 }
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
@@ -328,4 +336,8 @@ object Chapter05 extends App {
   println("5.13) take(unfold) : " + take3.toList)
   val takew4 = s1.takeWhileUsingUnfold(_ != 4)
   println("5.13) takeWhile(unfold) : " + takew4.toList)
+  val zip = s1.zipWith(Stream(5, 4, 3, 2, 1, 0))(_ * _)
+  println("5.13) zipWith : " + zip.toList)
+  val zipAll = s1.zipAll(Stream(5, 4, 3, 2, 1, 0))
+  println("5.13) zipAll : " + zipAll.toList)
 }
