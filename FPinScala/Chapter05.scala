@@ -156,6 +156,32 @@ sealed trait Stream[+A] {
       case ( Empty, Empty ) => None
     })
   }
+  
+  // 5.14 (difficult)
+  def startsWith[A](s: Stream[A]): Boolean = {
+    val ss : Stream[Boolean] = Stream.unfold( (this, s) )( tt => tt match {
+      case ( Cons(h, t), Cons(h2, t2) ) => if(h() == h2()) Some( true, (t(), t2()) ) else Some( false, (t(), t2()) ) 
+      case ( Cons(h, t), Empty ) => None
+      case ( Empty, Cons(h2, t2) ) => Some( false, (Empty, t2()) )
+      case ( Empty, Empty ) => None
+    })
+    
+    !ss.exists(_ == false)
+  }
+  
+  // 5.15 (difficult)
+  def tails : Stream[Stream[A]] = {
+    Stream.unfold( (this, false) )( tt => tt match {
+      case (Cons(h, t), false) => Some(tt._1, (t(), false)) 
+      case (Empty, false) => Some(Empty, (Empty, true))
+      case (Empty, true) => None
+      case _ => None
+    })
+  }
+  
+  def hasSubsequence[A](s: Stream[A]): Boolean = { 
+    tails exists (_ startsWith s)
+  }
 }
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
