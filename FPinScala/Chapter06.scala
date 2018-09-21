@@ -109,4 +109,57 @@ object Chapter06 extends App {
   }
   
   println("6.5) double(map) : " + doubleUsingMap(rng)._1)
+  
+  // 6.6
+  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = {
+    rng => {
+      val (a, rng2) = ra(rng)
+      val (b, rng3) = rb(rng2)
+      (f(a, b), rng3)
+    }
+  }
+  
+  def both[A, B](ra: Rand[A], rb: Rand[B]): Rand[(A, B)] = 
+    map2(ra, rb)((_, _))
+    
+  val randIntDouble: Rand[(Int, Double)] = 
+    both(nonNegativeInt, double)
+  
+  val randDoubleInt: Rand[(Double, Int)] = 
+    both(double, nonNegativeInt)
+    
+  println("6.6) randIntDouble : " + randIntDouble(rng)._1._1 + ", " + randIntDouble(rng)._1._2)
+  println("6.6) randDoubleInt : " + randDoubleInt(rng)._1._1 + ", " + randDoubleInt(rng)._1._2)
+  
+  // 6.7 (difficult)
+  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = {
+    @annotation.tailrec
+    def go(lr: List[Rand[A]], la: List[A], r: RNG): (List[A], RNG) = {
+      if(lr.length > 1) {
+        val (a, rng2) = lr.head(r)
+        go(lr.tail, la ::: List(a), rng2)
+      } else if(lr.length == 1) {
+        val (a, rng2) = lr.head(r)
+        (la ::: List(a), rng2)
+      } else {
+        (la, r)
+      }
+    }
+    
+    rng => {      
+      go(fs, List(), rng)
+    }
+  }
+  
+  val l: List[Rand[Int]] = List(nonNegativeInt, int)
+  val seq = sequence(l)
+  println("6.7) sequence : " + seq(rng))
+  
+  def intsUsingSequence(count: Int)(rng: RNG): (List[Int], RNG) = {
+    val fs = List.fill(count)(nonNegativeInt _)
+    
+    sequence(fs)(rng)
+  }
+  
+  println("6.7) intsUsingSequence : " + intsUsingSequence(4)(rng)._1)
 }
