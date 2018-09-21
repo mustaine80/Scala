@@ -162,4 +162,69 @@ object Chapter06 extends App {
   }
   
   println("6.7) intsUsingSequence : " + intsUsingSequence(4)(rng)._1)
+  
+  def nonNegativeLessThan1(n: Int): Rand[Int] = 
+    map(nonNegativeInt) { _ % n }
+  
+  def nonNegativeLessThan2(n: Int): Rand[Int] = {
+    rng =>
+      val (i, rng2) = nonNegativeInt(rng)
+      val mod = i % n
+      if(i + (n-1) - mod >= 0)
+        (mod, rng2)
+      else nonNegativeLessThan2(n)(rng2)
+  }
+  
+  println("nonNegativeLessThan : " + nonNegativeLessThan2(100)(rng)._1)
+  
+  // 6.8
+  def flatMap[A, B](f: Rand[A])(g: A => Rand[B]): Rand[B] = {
+    rng => {
+      val ff = f(rng)
+      g(ff._1)(ff._2)      
+    }
+  }
+  
+  val fm = flatMap(nonNegativeInt _)(a => { rng => (a + 1, rng) })
+  println("6.8) flatMap : " + fm(rng)._1)
+  
+  def nonNegativeLessThanUsingFlatMap(n: Int): Rand[Int] = {
+    flatMap(nonNegativeInt _)(i => { rng =>
+      val mod = i % n
+      
+      if(i + (n-1) - mod >= 0)
+        (mod, rng)
+      else {
+        nonNegativeLessThanUsingFlatMap(n)(rng)
+      }
+    })
+  }
+  
+  println("6.8) nonNegativeLessThan(flatMap) : " + nonNegativeLessThanUsingFlatMap(100)(rng)._1)
+  
+  def mapUsingFlatMap[A, B](s: Rand[A])(f: A => B): Rand[B] = {
+    flatMap(s)(a => { rng => 
+      (f(a), rng)
+    })
+  }
+  
+  def map2UsingFlatMap[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C ): Rand[C] = {
+    flatMap(ra)(a => { rng => 
+      flatMap(rb)(b => { rng2 => 
+        (f(a, b), rng2)
+      })(rng)
+    })
+  }
+  
+  def bothFlatMap[A, B](ra: Rand[A], rb: Rand[B]): Rand[(A, B)] = 
+    map2UsingFlatMap(ra, rb)((_, _))
+    
+  val randIntDoubleFlatMap: Rand[(Int, Double)] = 
+    bothFlatMap(nonNegativeInt, double)
+  
+  val randDoubleIntFlatMap: Rand[(Double, Int)] = 
+    bothFlatMap(double, nonNegativeInt)
+    
+  println("6.8) randIntDouble(map2 flatMap) : " + randIntDoubleFlatMap(rng)._1._1 + ", " + randIntDoubleFlatMap(rng)._1._2)
+  println("6.8) randDoubleInt(map2 flatMap) : " + randDoubleIntFlatMap(rng)._1._1 + ", " + randDoubleIntFlatMap(rng)._1._2)
 }
