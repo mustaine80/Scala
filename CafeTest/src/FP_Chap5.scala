@@ -99,7 +99,65 @@ sealed trait ExStream[+A] {
   def fibs(n1: Int, n2: Int): ExStream[Int] = ExStream.cons(n1, fibs(n2, n1 + n2))
 
   //  5.11
-  def unfold[A, S](z: S)(f: S => Option[(A, S)]): ExStream[A] = ???
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): ExStream[A] =
+    f(z) match {
+      case Some((a, s)) => ExStream.cons(a, unfold(s: S)(f))
+      case None => ExEmpty
+    }
+
+  //  5.12
+  def onesUnfold: ExStream[Int] = unfold(1)( x => Some((1, x)))
+
+  def constantUnfold[A](a: A): ExStream[A] = unfold(a)(x => Some((a, x)))
+
+  def fibsUnfold = unfold((0, 1))( x => Some((x._1 + x._2), ((x._2, x._1 + x._2))))
+
+  //  5.13
+  def mapUnfold[B](f: A => B): ExStream[B] = unfold(this){
+    case ExCons(h, t) => Some((f(h()), t()))
+    case _ => None
+  }
+
+  def takeUnfold(n : Int): ExStream[A] = unfold((this, n)) {
+    case (ExCons(h, t), 1) => Some((h(), (t(), 0)))
+    case (ExCons(h, t), n) if (n > 1) => Some((h(), (t(), n-1)))
+    case _ => None
+  }
+
+  def takeWhileUnfold(f: A => Boolean): ExStream[A] = unfold(this){
+    case ExCons(h, t) if (f(h())) => Some((h(), t()))
+    case _ => None
+  }
+
+  def zipWithUnfold[B, C](bs: ExStream[B])(f: (A, B) => C): ExStream[C] = unfold((this, bs)){
+    case (ExCons(h1, t1), ExCons(h2, t2)) => Some((f(h1(), h2()), (t1(), t2())))
+    case _ => None
+  }
+
+  def zipAll[B](s2: ExStream[B]): ExStream[(Option[A], Option[B])] = unfold((this, s2)){
+    case (ExCons(h1, t1), ExCons(h2, t2)) => Some((Some(h1()), Some(h2())), (t1(), t2()))
+    case (ExCons(h1, t1), ExEmpty) => Some((Some(h1()), None), (t1(), ExEmpty))
+    case (ExEmpty, ExCons(h2, t2)) => Some((None, Some(h2())), (ExEmpty, t2()))
+    case _ => None
+  }
+
+  //  5.14
+  def startsWith[A](s: ExStream[A]): Boolean = zipWithUnfold(s)((x, y) => (x, y)) forAll(z => z._1 == z._2)
+
+  //  5.15
+  //  todo: this => A 가 성립하지 않기 때문에 cons 가 되지 않음.
+  def tails: ExStream[ExStream[A]] = unfold(this) {
+    case ExCons(h, t) => Some((this, t()))
+    case _ => None
+  }.appendByFoldRight(ExEmpty)
+
+  def hasSubsequence[A](s: ExStream[A]): Boolean = tails exists (_ startsWith s)
+
+  //  5.16
+  def scanRight[B](z: B)(f: (A, => B) => B): ExStream[B] = unfold(tails){
+    case ExCons(h, t) => Some((h().foldRight(z)(f), t()))
+    case _ => None
+  }
 }
 
 case object ExEmpty extends ExStream[Nothing]
@@ -128,6 +186,8 @@ object FP_Chap5 extends App {
   }
 
   val bar = ExStream(1, 2, 3, 4, 5)
+  val car = ExStream(0.1, 0.2, 0.3, 0.4, 0.5)
+  val dar = ExStream(6, 7, 8, 9)
 
   val x = ExCons(() => expensive(1), () => bar)
   val h1 = x.headOption
@@ -159,4 +219,15 @@ object FP_Chap5 extends App {
   println("stream infinite stream ones.forAll(_ != 1) " + ones.forAll(_ != 1))
   println("stream from(1) take(10) " + ExStream().from(1).take(10).toList)
   println("stream fibs take(10) " + ExStream().fibs(0,1).take(10).toList)
+  println("stream infinite stream onesUnfold.take(5) " + ExStream().onesUnfold.take(5).toList)
+  println("stream infinite stream fibsUnfold.take(10) " + ExStream().fibsUnfold.take(10).toList)
+  println("stream mapUnfold(_ * 2) " + bar.mapUnfold(_ * 2).toList)
+  println("stream takeUnfold(2) " + bar.takeUnfold(2).toList)
+  println("stream takeWhileUnfold(_ < 4) " + bar.takeWhileUnfold(_ < 4).toList)
+  println("stream zipWithUnfold(IntZipDouble , _ + _) " + bar.zipWithUnfold(car)(_ + _).toList)
+  println("Stream zipAll " + bar.zipAll(dar).toList)
+  println("Stream startsWith " + bar.startsWith(ExStream(1, 2, 3)))
+  println("Stream tails " + bar.tails.toList)
+  println("scala.collection.immutable.Stream.tails " + Stream(1, 2, 3, 4, 5).tails.toList)
+  println("Stream scanRight " + bar.scanRight(0)(_ + _).toList)
 }
