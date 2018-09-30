@@ -12,7 +12,7 @@ sealed trait Publisher {
 
 
 sealed trait Subscriber {
-  def onSubscribe(s: Subscription): Unit  //  todo: ????
+  def onSubscribe(s: Subscription): Unit
 
   def onNext(t: Int): Unit    //  todo: generics
 
@@ -32,7 +32,6 @@ sealed abstract class Subscription {
 trait Processor extends Publisher with Subscriber {
   var _pub: Publisher = null
   var _sub: Subscriber = null
-  var _s: Subscription = null
 
   def init(pub: Publisher, sub: Subscriber): Unit = { //  todo: how force to init
     _pub = pub
@@ -44,10 +43,8 @@ trait Processor extends Publisher with Subscriber {
     _sub = sub
   }
 
-  override def onSubscribe(s: Subscription): Unit = {
-    _sub.onSubscribe(s)
-    _s = s
-  }
+  override def onSubscribe(s: Subscription): Unit = _sub.onSubscribe(s)
+
 
   override def onError(t: Throwable): Unit = println(t.printStackTrace())
 }
