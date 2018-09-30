@@ -1,5 +1,3 @@
-
-
 sealed trait ExStream[+A] {
   def headOption: Option[A] = this match {
     case ExCons(h, t) => Some(h())
