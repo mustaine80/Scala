@@ -1,5 +1,3 @@
-
-
 /*
   reactive stream simply implementation
   protocol: onSubscribe onNext* (onError | onComplete)
@@ -16,7 +14,7 @@ sealed trait Subscriber {
 
   def onNext(t: Int): Unit    //  todo: generics
 
-  def onError(t: Throwable): Unit
+  def onError(t: Throwable): Unit = println(t.printStackTrace())
 
   def onComplete: Unit
 }
@@ -29,28 +27,16 @@ sealed abstract class Subscription {
 }
 
 
-trait Processor extends Publisher with Subscriber {
-  var _pub: Publisher = null
-  var _sub: Subscriber = null
+sealed trait Processor extends Publisher with Subscriber {
+  def _sub: Subscriber
 
-  def init(pub: Publisher, sub: Subscriber): Unit = { //  todo: how force to init
-    _pub = pub
-    _sub = sub
-  }
-
-  override def subscribe(sub: Subscriber): Unit = {
-    _pub.subscribe(sub)
-    _sub = sub
-  }
+  override def subscribe(sub: Subscriber): Unit = Unit
 
   override def onSubscribe(s: Subscription): Unit = _sub.onSubscribe(s)
-
-
-  override def onError(t: Throwable): Unit = println(t.printStackTrace())
 }
 
 
-case class PubAir() extends Publisher {
+case class PubAir(_sub: Subscriber) extends Publisher {
   val data = Stream.range(0, 100, 1)  //  data sampling
 
   var upperBound = Int.MaxValue   //  todo: var => val
@@ -68,6 +54,8 @@ case class PubAir() extends Publisher {
     data take upperBound foreach sub.onNext
     sub.onComplete
   }
+
+  subscribe(_sub)
 }
 
 
@@ -79,37 +67,28 @@ case class SubSensor() extends Subscriber {
 
   override def onNext(t: Int): Unit = println("[Sensor] onNext - " + t)
 
-  override def onError(t: Throwable): Unit = println("[Sensor] onError: " + t.printStackTrace())
-
-  override def onComplete: Unit = println("[Sensor] onComplete")
+  override def onComplete: Unit = println("[Sensor] onComplete\n")
 }
 
 
-case class MapOperator() extends Processor {
-  override def onNext(t: Int): Unit = {
-    println("[map] onNext - " + t * 2)
-    _sub.onNext(t * 2)
-  }
+case class MapOperator(sub: Subscriber) extends Processor {
+  override def _sub: Subscriber = sub
 
-  override def onComplete: Unit = {
-    println("[map] onComplete")
-    _sub.onComplete
-  }
+  override def onNext(t: Int): Unit = _sub.onNext(t * 2)
+
+  override def onComplete: Unit = _sub.onComplete
 }
 
 
-case class FoldOperator() extends Processor {
+case class FoldOperator(sub: Subscriber) extends Processor {
   import scala.collection.mutable.ListBuffer
-
   val data = ListBuffer.empty[Int]
 
-  override def onNext(n: Int): Unit = {
-    data += n
-    println("[fold] onNext - " + data.foldRight(0)(_ + _))
-  }
+  override def _sub: Subscriber = sub
+
+  override def onNext(t: Int): Unit = { data += t }
 
   override def onComplete: Unit = {
-    println("[fold] onComplete")
     _sub.onNext(data.foldRight(0)(_ + _))
     data.clear()
     _sub.onComplete
@@ -119,15 +98,6 @@ case class FoldOperator() extends Processor {
 
 object RxProto {
   def main(args:Array[String]): Unit = {
-    val air = PubAir()
-    val sensor = SubSensor()
-    val opFold = FoldOperator()
-    val opMap = MapOperator()
-
-    //  todo: unnatural chaining
-    opMap.init(air, opFold)
-    opFold.init(opMap, sensor)
-
-    air.subscribe(opMap)
+    val air_map_fold_sensor = PubAir(MapOperator(FoldOperator(SubSensor())))
   }
 }
