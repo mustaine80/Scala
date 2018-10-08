@@ -1,4 +1,5 @@
 
+
 trait RNG {
   type Rand[+A] = RNG => (A, RNG)
 
@@ -12,6 +13,38 @@ trait RNG {
     val (a, rng2) = s(rng)
     (f(a), rng2)
   }
+
+  //  6.6
+  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng => {
+    val (a, rng2) = ra(rng)
+    val (b, rng3) = rb(rng2)
+    (f(a,b), rng3)
+  }
+
+  def both[A, B](ra: Rand[A], rb: Rand[B]): Rand[(A, B)] = map2(ra, rb)((_, _))
+
+  //  6.7
+  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = rng => {
+    val (a, rng2) = if (fs.isEmpty) (List[A](), rng) else (List(fs.head(rng)._1), fs.head(rng)._2)
+    val (b, rng3) = if (fs.tail.isEmpty) (List[A](), rng2) else sequence(fs.tail)(rng2)
+    (a ++ b, rng3)
+  }
+
+  def sequence2[A](fs: List[Rand[A]]): Rand[List[A]] =
+    fs.foldRight(unit(List[A]()))((f, acc) => map2(f, acc)(_ :: _))
+
+  //  6.8
+  def flatMap[A, B](f: Rand[A])(g: A => Rand[B]): Rand[B] = rng => {
+    val (a, rng2) = f(rng)
+    g(a)(rng2)
+  }
+
+  //  6.9
+  def mapByFlatMap[A, B](s: Rand[A])(f: A => B): Rand[B] =
+    flatMap(s)(a => unit(f(a)))
+
+  def map2ByFlatMap[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+    flatMap(ra)(a => map(rb)(b => f(a, b)))
 }
 
 
@@ -23,11 +56,6 @@ case class SimpleRNG(seed: Long) extends RNG {
     (n, nextRNG)
   }
 
-  def nonNegativeEven: Rand[Int] = map(SimpleRNG.nonNegativeInt)(i => i - i % 2)
-}
-
-
-case object SimpleRNG {
   def randomPair(rng: RNG): ((Int, Int), RNG) = {
     val (i1, rng2) = rng.nextInt
     val (i2, rng3) = rng2.nextInt
@@ -37,7 +65,7 @@ case object SimpleRNG {
 
   //  6.1
   def nonNegativeInt(rng: RNG): (Int, RNG) = {
-    val (i1, rng1) = rng.nextInt
+    val (i1, rng1) = nextInt
     val i2 = if (i1 == Int.MinValue) 0 else if (i1 < 0) -i1 else i1
     (i2, rng1)
   }
@@ -48,6 +76,8 @@ case object SimpleRNG {
     val d1 = if (i1 == Int.MaxValue) 0.0 else (i1.toDouble / Int.MaxValue)
     (d1, rng1)
   }
+
+  def nonNegativeEven: Rand[Int] = map(nonNegativeInt)(i => i - i % 2)
 
   //  6.3
   def intDouble(rng: RNG): ((Int, Double), RNG) = {
@@ -78,13 +108,41 @@ case object SimpleRNG {
 
     loop(count, List[Int](), rng)
   }
+
+  //  6.5
+  def graceDouble: Rand[Double] =
+    map(nonNegativeInt)(x => if (x == Int.MaxValue) 0.0 else (x.toDouble / Int.MaxValue))
+
+  def nonNegativeLessThan(n: Int): Rand[Int] = { rng =>
+    val (i, rng2) = nonNegativeInt(rng)
+    val mod = i % n
+    if (i + (n - 1) - mod >= 0) (mod, rng2)
+    else nonNegativeLessThan(n)(rng2)
+  }
+
+  def rollDie: Rand[Int] = mapByFlatMap(nonNegativeLessThan(6))(_ + 1)
+
 }
 
 
 object FP_Chap6 {
   def main(args:Array[String]): Unit = {
     val rng = SimpleRNG(42)
+    import rng._
 
-    println(SimpleRNG.ints(10)(rng)._1)
+    println("ints: " + ints(10)(rng)._1)
+    println("grace double: " + graceDouble(rng)._1)
+
+    val randIntDouble: Rand[(Int, Double)] = both(nonNegativeInt, double)
+    println("randIntDouble: " + randIntDouble(rng)._1)
+
+    val randDoubleInt: Rand[(Double, Int)] = both(double, nonNegativeInt)
+    println("randDoubleInt: " + randDoubleInt(rng)._1)
+
+    val fs = List(unit(0), unit(1), unit(2), unit(3))
+    println("sequence: " + sequence(fs)(rng)._1)
+
+    println("nonNegativeLessThan: " + nonNegativeLessThan(99)(rng)._1)
+    println("rollDie: " + SimpleRNG(5).rollDie(SimpleRNG(5))._1)
   }
 }
