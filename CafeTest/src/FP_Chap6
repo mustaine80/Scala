@@ -121,7 +121,55 @@ case class SimpleRNG(seed: Long) extends RNG {
   }
 
   def rollDie: Rand[Int] = mapByFlatMap(nonNegativeLessThan(6))(_ + 1)
+}
 
+
+case class State[S, +A](run: S => (A, S)) {
+  //  6.10
+  def unit[A](a: A): (S => (A, S)) = s => {
+    val (a2, s2) = run(s)
+    (a, s2)
+  }
+
+  def map[A, B](sa: S => (A, S))(f: A => B): S => (B, S) = s => {
+    val (a, s2) = sa(s)
+    (f(a), s2)
+  }
+
+  def map2[A, B, C](sa: S => (A, S), sb: S => (B, S))(f: (A, B) => C): S => (C, S) = s => {
+    val (a, s2) = sa(s)
+    val (b, s3) = sb(s2)
+    (f(a, b), s3)
+  }
+
+  def flatMap[A, B](f: S => (A, S))(g: A => (S => (B, S))): S => (B, S) = s => {
+    val (a, s2) = f(s)
+    g(a)(s2)
+  }
+
+  def sequence[A](fs: List[S => (A, S)]): S => (List[A], S) =
+    fs.foldRight(unit(List[A]()))((a, acc) => map2(a, acc)(_ :: _))
+}
+
+
+case object State {
+  def get[S]: State[S, S] = State(s => (s, s))
+
+  def set[S](s: S): State[S, Unit] = State(_ => ((), s))
+
+  def modify[S](f: S => S): State[S, Unit] = set(f(get))
+}
+
+
+sealed trait Input
+case object Coin extends Input
+case object Turn extends Input
+
+//  todo
+case class Machine(locked: Boolean, candies: Int, coins: Int) {
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = ???
+  //  coin 이 입력되면 Machine 상태는 modify 와 같다. 단지 locked 만 false 로 변경된다
+  //  turn 이 입력되면 Machine 상태는 값(candy, coin)을 출력하면서 locked 를 true 로 변경한다
 }
 
 
