@@ -169,7 +169,14 @@ sealed trait Stream[+A] {
     !ss.exists(_ == false)
   }
   
-  // 5.15 (difficult)
+  def startsWith2[A](s: Stream[A]): Boolean = {
+    val ss = zipWith(s)( (a, b) => a == b )
+    
+    !ss.exists(_ == false)
+    // s가 this보다 길이가 길 경우를 만족하지 못할 수도 있음
+  }
+  
+  // 5.15
   def tails : Stream[Stream[A]] = {
     Stream.unfold( (this, false) )( tt => tt match {
       case (Cons(h, t), false) => Some(tt._1, (t(), false)) 
@@ -210,6 +217,7 @@ object Stream {
     lazy val c: Stream[A] = Stream.cons(a, c)
     
     c
+    //Stream.cons(a, constant(a))
   }
   
   // 5.9
@@ -227,13 +235,20 @@ object Stream {
   }
   
   // 5.11
-  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
+  def unfold2[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
     lazy val c: Stream[Option[(A, S)]] = Stream.cons(f(z), c.map( o => f(o.get._2) ) )
     
     c.takeWhile(o => o match {
       case Some(t) => true
       case None => false
     }).map(_.get._1)
+  }
+  
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = { 
+    f(z) match {
+      case Some(t) => Stream.cons(t._1, unfold(t._2)(f))
+      case None => Empty
+    }
   }
   
   // 5.12
@@ -243,6 +258,10 @@ object Stream {
     
   def fromUsingUnfold(n: Int): Stream[Int] = {
     unfold( n )(a => Some(a + 1, a + 1) )  
+  }
+  
+  def fromTo(n: Int, m: Int): Stream[Int] = {
+    unfold( n )(a => if(a <= m) Some(a, a+1) else None)
   }
   
   def constantUsingUnfold(n: Int): Stream[Int] = {
@@ -389,4 +408,6 @@ object Chapter05 extends App {
   
   // 5.16
   println("5.16) scanRight : " + s1.scanRight(1)(_ + _).toList)
+  
+  println(Stream.fromTo(10, 15).toList)
 }
