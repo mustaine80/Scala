@@ -322,10 +322,57 @@ object Chapter06 extends App {
   val seqs = State.sequence(ls)
   println("6.10) sequence : " + seqs.run(rng))
   
-  // 6.11
-  /*
+  // 6.11 (difficult)  
   def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = {
+    /* 규칙
+     * 잠겨진 판매기에 동전을 넣으면, 사탕이 남아 있는 경우 잠김이 풀린다.
+     * 풀린 판매기의 손잡이를 돌리면 사탕이 나오고 판매기가 잠긴다.
+     * 잠긴 판매기의 손잡이를 돌리거나 풀린 판매기에 동전을 넣으면 아무 일도 생기지 않는다.
+     * 사탕이 없는 판매기는 모든 입력을 무시한다.
+     */
     
+    // initial state
+    var machine = Machine(true, 5, 10)
+        
+    val coinState = State((m: Machine) => {
+      if(m.candies > 0)
+        ((m.coins + 1, m.candies), Machine(false, m.candies, m.coins + 1))
+      else
+        ((m.coins, m.candies), m)
+    })
+    
+    val turnState = State((m: Machine) => {
+      if(m.locked)
+        ((m.coins, m.candies), m)
+      else
+        ((m.coins, m.candies - 1), Machine(true, m.candies - 1, m.coins))
+    })
+    
+    var lastState = turnState
+    
+    for(i <- inputs) {
+      i match {
+        case Coin => {
+          machine = coinState.run(machine)._2
+          lastState = coinState
+        }
+        case Turn => {
+          machine = turnState.run(machine)._2
+          lastState = turnState
+        }
+      }
+    }
+        
+    println("6.10) simulateMachine: (" + machine.coins + ", " + machine.candies + ")")
+    lastState
   } 
-  */
+  
+  val inputs1 = List(Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn)
+  val inputs2 = List(Turn, Turn, Coin, Turn)
+  val inputs3 = List(Coin, Coin, Coin, Turn)
+  val inputs4 = List(Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn)
+  simulateMachine(inputs1)
+  simulateMachine(inputs2)
+  simulateMachine(inputs3)
+  simulateMachine(inputs4)
 }
