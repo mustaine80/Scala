@@ -1,4 +1,4 @@
-package chapter06
+.package chapter06
 
 trait RNG {
   def nextInt: (Int, RNG)
@@ -13,6 +13,78 @@ case class SimpleRNG(seed: Long) extends RNG {
   } 
 }
 
+
+case class State[S, +A](run: S => (A, S)) {
+  // 6.10
+  def map[B](f: A => B): State[S, B] = {
+    val run2 = (st: S) => {
+      val (a, st2) = run(st)
+      (f(a), st2)
+    }
+    
+    State(run2)
+  }
+  
+  
+  def flatMap[B](f: A => State[S, B]): State[S, B] = {
+    val run2 = (st: S) => {
+      val (a, st2) = run(st)
+      f(a).run(st2)      
+    }
+    
+    State(run2)
+  }
+  
+  def map2[B, C](sb: State[S, B])(f: (A, B) => C): State[S, C] = {
+    val run2 = (st: S) => {
+      val (a, st2) = run(st)
+      val (b, st3) = sb.run(st2)
+      (f(a, b), st3)
+    }
+    
+    State(run2)
+  }
+  
+  def get[S]: State[S, S] = State(s => (s, s))
+  def set[S](s: S): State[S, Unit] = State(_ => ((), s))
+  
+  def modify[S](f: S => S): State[S, Unit] = for {
+    s <- get
+    _ <- set(f(s))
+  } yield ()
+}
+
+object State {  
+  // 6.10
+  // sequence는 Companion object의 method로 구현함
+  def sequence[S, A](fs: List[State[S, A]]): State[S, List[A]] = {
+    @annotation.tailrec
+    def go(ls: List[State[S, A]], la: List[A], s: S): (List[A], S) = {
+      if(ls.length > 1) {
+        val (a, st2) = ls.head.run(s)
+        go(ls.tail, la ::: List(a), st2)
+      } else if(ls.length == 1) {
+        val (a, st2) = ls.head.run(s)
+        (la ::: List(a), st2)
+      } else {
+        (la, s)
+      }
+    }
+    
+    val run2 = (st: S) => {      
+      go(fs, List(), st)
+    }
+    
+    State(run2)
+  }
+}
+
+// 6.11
+sealed trait Input
+case object Coin extends Input
+case object Turn extends Input
+
+case class Machine(locked: Boolean, candies: Int, conins: Int)
 
 object Chapter06 extends App {
   val rng = SimpleRNG(42)
@@ -213,7 +285,7 @@ object Chapter06 extends App {
       flatMap(rb)(b => { rng2 => 
         (f(a, b), rng2)
       })(rng)
-    })
+    })  
   }
   
   def bothFlatMap[A, B](ra: Rand[A], rb: Rand[B]): Rand[(A, B)] = 
@@ -227,4 +299,33 @@ object Chapter06 extends App {
     
   println("6.8) randIntDouble(map2 flatMap) : " + randIntDoubleFlatMap(rng)._1._1 + ", " + randIntDoubleFlatMap(rng)._1._2)
   println("6.8) randDoubleInt(map2 flatMap) : " + randDoubleIntFlatMap(rng)._1._1 + ", " + randDoubleIntFlatMap(rng)._1._2)
+  
+  type Rand2[A] = State[RNG, A] 
+  // 6.10
+  val state = State(nonNegativeInt)
+  def doubleUsingStateMap: Rand2[Double] = {
+    state.map(i => i/Int.MaxValue.toDouble)
+  }
+  
+  println("6.10) double(map) : " + doubleUsingStateMap.run(rng)._1)
+  
+  val sfm = state.flatMap(a => { State( (rng: RNG) => (a + 1, rng) ) })
+  
+  println("6.10) flatMap : " + sfm.run(rng)._1)
+  
+  val state2 = State(nonNegativeLessThan1(1000))
+  val m2 = state.map2(state2)(_ / _)
+  
+  println("6.10) map2 : " + m2.run(rng)._1)
+  
+  val ls: List[Rand2[Int]] = List(State(nonNegativeInt), State(int))
+  val seqs = State.sequence(ls)
+  println("6.10) sequence : " + seqs.run(rng))
+  
+  // 6.11
+  /*
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = {
+    
+  } 
+  */
 }
