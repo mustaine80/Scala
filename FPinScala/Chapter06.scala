@@ -332,7 +332,8 @@ object Chapter06 extends App {
      */
     
     // initial state
-    var machine = Machine(true, 5, 10)
+    //var machine = Machine(true, 5, 10)
+    val machine = Machine(true, 5, 10)
         
     val coinState = State((m: Machine) => {
       if(m.candies > 0)
@@ -348,6 +349,7 @@ object Chapter06 extends App {
         ((m.coins, m.candies - 1), Machine(true, m.candies - 1, m.coins))
     })
     
+    /*
     var lastState = turnState
     
     for(i <- inputs) {
@@ -362,9 +364,37 @@ object Chapter06 extends App {
         }
       }
     }
+    */
+    
+    def go(is: List[Input], m: Machine, s: State[Machine, (Int, Int)]): (Machine, State[Machine, (Int, Int)]) = {
+      val head = is.headOption
+      
+      head match {
+        case Some(i) => {
+          val t = i match {
+            case Coin => {
+              (coinState.run(m)._2, coinState)
+            }
+            case Turn => {
+              (turnState.run(m)._2, turnState)
+            }
+          }
+          
+          go(is.tail, t._1, t._2)
+        }
         
-    println("6.10) simulateMachine: (" + machine.coins + ", " + machine.candies + ")")
-    lastState
+        case None => {
+          (m, s)
+        }
+      }
+    }
+    
+    val gg = go(inputs, machine, coinState)
+    println("6.11) simulateMachine: (" + gg._1.coins + ", " + gg._1.candies + ")")
+            
+    //println("6.11) simulateMachine: (" + machine.coins + ", " + machine.candies + ")")
+    //lastState
+    gg._2
   } 
   
   val inputs1 = List(Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn)
