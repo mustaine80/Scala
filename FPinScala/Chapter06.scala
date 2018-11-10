@@ -1,4 +1,4 @@
-.package chapter06
+package chapter06
 
 trait RNG {
   def nextInt: (Int, RNG)
@@ -84,7 +84,7 @@ sealed trait Input
 case object Coin extends Input
 case object Turn extends Input
 
-case class Machine(locked: Boolean, candies: Int, conins: Int)
+case class Machine(locked: Boolean, candies: Int, coins: Int)
 
 object Chapter06 extends App {
   val rng = SimpleRNG(42)
