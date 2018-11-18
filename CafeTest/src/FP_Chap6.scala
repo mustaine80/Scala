@@ -125,39 +125,78 @@ case class SimpleRNG(seed: Long) extends RNG {
 
 
 case class State[S, +A](run: S => (A, S)) {
-  //  6.10
-  def unit[A](a: A): (S => (A, S)) = s => {
-    val (a2, s2) = run(s)
-    (a, s2)
-  }
 
-  def map[A, B](sa: S => (A, S))(f: A => B): S => (B, S) = s => {
-    val (a, s2) = sa(s)
-    (f(a), s2)
-  }
+  def unit[A](a: A): State[S, A] = State(s => (a, s))
 
-  def map2[A, B, C](sa: S => (A, S), sb: S => (B, S))(f: (A, B) => C): S => (C, S) = s => {
-    val (a, s2) = sa(s)
-    val (b, s3) = sb(s2)
-    (f(a, b), s3)
-  }
+  def map[B](f: A => B): State[S, B] = State(
+    s => {
+      val (a, s2) = run(s)
+      (f(a), s2)
+    }
+  )
 
-  def flatMap[A, B](f: S => (A, S))(g: A => (S => (B, S))): S => (B, S) = s => {
-    val (a, s2) = f(s)
-    g(a)(s2)
-  }
+  def map2[B, C](sb: State[S, B])(f: (A, B) => C): State[S, C] = State(
+    s => {
+      val (a, s2) = run(s)
+      val (b, s3) = sb.run(s2)
+      (f(a, b), s3)
+    }
+  )
 
-  def sequence[A](fs: List[S => (A, S)]): S => (List[A], S) =
-    fs.foldRight(unit(List[A]()))((a, acc) => map2(a, acc)(_ :: _))
-}
+  def flatMap[B](g: A => State[S, B]): State[S, B] = State(
+    s => {
+      val (a, s2) = run(s)
+      g(a).run(s2)
+    }
+  )
 
-
-case object State {
   def get[S]: State[S, S] = State(s => (s, s))
 
   def set[S](s: S): State[S, Unit] = State(_ => ((), s))
 
-  def modify[S](f: S => S): State[S, Unit] = set(f(get))
+  def modify[S](f: S => S): State[S, Unit] = for {
+    s <- get
+    _ <- set(f(s))
+  } yield ()
+}
+
+object State {
+  def sequence[S, A](fs: List[State[S, A]]): State[S, List[A]] = State(
+    s => {
+      val (a, s2) = if (fs.isEmpty) (List[A](), s) else (List(fs.head.run(s)._1), fs.head.run(s)._2)
+      val (b, s3) = if (fs.tail.isEmpty) (List[A](), s2) else sequence(fs.tail).run(s2)
+      (a++b, s3)
+    }
+  )
+
+  def r1(Coin: Input): State[Machine, (Int, Int)] = State(
+    s => ((s.coins + 1, s.candies), Machine(false, s.candies, s.coins + 1))
+  )
+
+  def r2(Turn: Input): State[Machine, (Int, Int)] = State(
+    s => ((s.coins, s.candies - 1), Machine(true, s.candies - 1, s.coins))
+  )
+
+  def r3(in: Input): State[Machine, (Int, Int)] = State(
+    s => ((s.coins, s.candies), s)
+  )
+
+  def r4(in: Input): State[Machine, (Int, Int)] = State(
+    s => ((s.coins, s.candies), s)
+  )
+
+  def setRule(input: Input): State[Machine, (Int, Int)] = State( s => {
+    if (s.candies <= 0) r4(input).run(s)
+    else if (s.locked && input == Coin) r1(input).run(s)
+    else if (!s.locked && input == Turn) r2(input).run(s)
+    else r3(input).run(s)
+  })
+
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = State(s => {
+    val rs = for (in <- inputs) yield (setRule(in))
+    val sm = sequence(rs.toList).run(s)
+    (sm._1.last, sm._2)
+  })
 }
 
 
@@ -165,12 +204,7 @@ sealed trait Input
 case object Coin extends Input
 case object Turn extends Input
 
-//  todo
-case class Machine(locked: Boolean, candies: Int, coins: Int) {
-  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = ???
-  //  coin 이 입력되면 Machine 상태는 modify 와 같다. 단지 locked 만 false 로 변경된다
-  //  turn 이 입력되면 Machine 상태는 값(candy, coin)을 출력하면서 locked 를 true 로 변경한다
-}
+case class Machine(locked: Boolean, candies: Int, coins: Int)
 
 
 object FP_Chap6 {
@@ -192,5 +226,8 @@ object FP_Chap6 {
 
     println("nonNegativeLessThan: " + nonNegativeLessThan(99)(rng)._1)
     println("rollDie: " + SimpleRNG(5).rollDie(SimpleRNG(5))._1)
+
+    val sm1 = State.simulateMachine(List(Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn)).run(Machine(true, 5, 10))
+    println("Machine(true, 5, 10) inputs (Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn) = Coins: " + sm1._1._1 + ", Candies: " + sm1._1._2)
   }
 }
