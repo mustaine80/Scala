@@ -1,8 +1,9 @@
 import Par.Par
+
 import scala.concurrent.duration.TimeUnit
 
 class ExecutorService {
-  def submit[A](a: Callable[A]): Future[A] = ???  //  todo: need to impl
+  def submit[A](a: Callable[A]): Future[A] = Par.unit(a.call)(this)
 }
 
 trait Callable[A] { def call: A }
@@ -15,6 +16,7 @@ trait Future[A] {
   def isCanceled: Boolean
 }
 
+
 //  7.2
 object Par
 {
@@ -22,7 +24,7 @@ object Par
 
   def unit[A](a: A): Par[A] = (es: ExecutorService) => UnitFuture(a)
 
-  def lazyUnit[A](a: => A):Par[A] = fork(unit(a)) //  todo: unit(a) 를 먼저 실행하는가? 아니면 fork(_) 실행을 지연하는가?
+  def lazyUnit[A](a: => A):Par[A] = fork(unit(a))
 
   private case class UnitFuture[A](get: A) extends Future[A] {
     override def isDone: Boolean = true
@@ -99,9 +101,10 @@ object FP_Chap7 {
   def main(args:Array[String]): Unit = {
     println("div & conq sum (IndexedSeq(0,1,2,3,4,5)): " + sum(IndexedSeq(1,2,3,4,5)))
     println("parallel sum2 (IndexedSeq(0,1,2,3,4,5)): " + sum2(IndexedSeq(1,2,3,4,5)))
-    println("parallel sum3 (IndexedSeq(0,1,2,3,4,5)): " + Par.run(new ExecutorService)(sum3(IndexedSeq(1,2,3,4,5))).get)
 
-    //  todo: need to implement 'def submit'
-//    println("parallel sum4 (IndexedSeq(0,1,2,3,4,5)): " + Par.run(new ExecutorService)(sum4(IndexedSeq(1,2,3,4,5))).get)
+    val es = new ExecutorService
+
+    println("parallel sum3 (IndexedSeq(0,1,2,3,4,5)): " + Par.run(new ExecutorService)(sum3(IndexedSeq(1,2,3,4,5))).get)
+    println("parallel sum4 (IndexedSeq(0,1,2,3,4,5)): " + Par.run(new ExecutorService)(sum4(IndexedSeq(1,2,3,4,5))).get)
   }
 }
