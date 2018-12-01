@@ -46,10 +46,36 @@ object Par
       UnitFuture(f(af.get, bf.get)) //  todo 7.3: respect timeouts
     }
 
+  def map[A, B](pa: Par[A])(f: A => B): Par[B] =
+    map2(pa, unit(()))((a, _) => f(a))
+
+  //  todo 7.3
+  def map2Fix[A, B, C](a: Par[A], b: Par[B])(f: (A, B) => C): Par[C] = ???
+
   def fork[A](a: => Par[A]): Par[A] =
     es => es.submit(new Callable[A] {
       override def call: A = a(es).get
     })
+
+  //  7.4
+  def asyncF[A, B](f: A => B): A => Par[B] =
+    a => lazyUnit(f(a))
+
+  //  7.5
+  def sequence[A](ps: List[Par[A]]): Par[List[A]] =
+    ps match {
+      case Nil => unit(List[A]())
+      case h::t => map2(map(h)(List[A](_)), sequence(t))(_ ++ _)
+    }
+
+  //  7.6
+  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] =
+    sequence(as.filter(f).map(unit(_)))
+
+  def parMap[A, B](ps: List[A])(f: A => B): Par[List[B]] = fork {
+    val fbs: List[Par[B]] = ps.map(asyncF(f))
+    sequence(fbs)
+  }
 }
 
 
@@ -104,7 +130,12 @@ object FP_Chap7 {
 
     val es = new ExecutorService
 
-    println("parallel sum3 (IndexedSeq(0,1,2,3,4,5)): " + Par.run(new ExecutorService)(sum3(IndexedSeq(1,2,3,4,5))).get)
-    println("parallel sum4 (IndexedSeq(0,1,2,3,4,5)): " + Par.run(new ExecutorService)(sum4(IndexedSeq(1,2,3,4,5))).get)
+    println("parallel sum3 (IndexedSeq(0,1,2,3,4,5)): " + Par.run(es)(sum3(IndexedSeq(1,2,3,4,5))).get)
+    println("parallel sum4 (IndexedSeq(0,1,2,3,4,5)): " + Par.run(es)(sum4(IndexedSeq(1,2,3,4,5))).get)
+
+    val ls = List(1,2,3,4,5,6,7,8,9,10)
+
+    println("parMap List(n) -> Par[List(n * 10)]: " + Par.parMap(ls)(_ * 10)(es).get)
+    println("parFilter List(n) -> Par[List(evenNum)]: " + Par.parFilter(ls)(_ % 2 == 0)(es).get)
   }
 }
