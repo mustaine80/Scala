@@ -133,8 +133,9 @@ object Par
     map(sequence(pars))(_.flatten)
   }
 
-  // etc todo currying? compose?
-  def map3[A, B, C, D](pa: Par[A])(pb: Par[B])(pc: Par[C])(f: (A, B, C) => D): Par[D] = ???
+  // etc
+  def map3[A, B, C, D](pa: Par[A])(pb: Par[B])(pc: Par[C])(f: (A, B, C) => D): Par[D] =
+    map2(map2(pa, pb)((a, b) => f.curried(a)(b)), pc)((cab, c) => cab(c))
 }
 
 
