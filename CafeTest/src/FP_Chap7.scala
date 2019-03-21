@@ -1,6 +1,7 @@
 import java.util.concurrent.TimeUnit
 
 import Par.Par
+import sun.invoke.empty.Empty
 
 import scala.concurrent.duration.TimeUnit
 
@@ -120,14 +121,20 @@ object Par
       case h::t => map2(map(h)(List[A](_)), sequence(t))(_ ++ _)
     }
 
-  //  7.6
-  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] =
-    sequence(as.filter(f).map(unit(_)))
-
   def parMap[A, B](ps: List[A])(f: A => B): Par[List[B]] = fork {
     val fbs: List[Par[B]] = ps.map(asyncF(f))
     sequence(fbs)
   }
+
+  //  7.6
+  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] = {
+    val pars: List[Par[List[A]]] =
+      as.map(asyncF(a => if (f(a)) List(a) else List()))
+    map(sequence(pars))(_.flatten)
+  }
+
+  // etc todo currying? compose?
+  def map3[A, B, C, D](pa: Par[A])(pb: Par[B])(pc: Par[C])(f: (A, B, C) => D): Par[D] = ???
 }
 
 
@@ -206,5 +213,14 @@ object FP_Chap7 {
       Par.map2Fix(sum5(is), sum5(is))(_ + _)(es).get(1, TimeUnit.MILLISECONDS))
     println("map2Fix timeout '3 msec' return 'Some' : " +
       Par.map2Fix(sum5(is), sum5(is))(_ + _)(es).get(3, TimeUnit.MILLISECONDS))
+
+    //  7.4 ~ 7.5
+    Par.sequence(ls.map(Par.asyncF(_ * 10)))(es).get foreach println
+
+    //  7.6
+    Par.parFilter(ls){ x =>
+      Thread.sleep(500) //  big time
+      x % 2 == 0
+    }(es).get foreach println
   }
 }
