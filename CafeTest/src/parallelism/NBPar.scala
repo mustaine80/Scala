@@ -3,10 +3,6 @@ package parallelism
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.{Callable, CountDownLatch, ExecutorService, Executors}
 
-import fpinscala.parallelism.Actor
-
-
-
 sealed trait Future[A] {
   private[parallelism] def apply(k: A => Unit): Unit
 }
