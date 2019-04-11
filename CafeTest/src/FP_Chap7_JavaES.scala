@@ -21,8 +21,6 @@ object Par
     override def get(timeout: Long, unit: TimeUnit): A = get
   }
 
-
-
   def run[A](s: ExecutorService)(a: Par[A]): Future[A] = a(s)
 
   //  7.1
@@ -79,8 +77,39 @@ object Par
       if (run(es)(cond).get) t(es)
       else f(es)
 
-  //  todo
-  def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] = ???
+  //  7.11
+  def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] =
+    es => choices(run(es)(n).get)(es) //  todo 예외 처리 없음
+
+  def choiceWithChoiceN[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] = {
+    val choices = List[Par[A]](t, f)
+    val n = map(cond)(x => if (x) 1 else 0)
+    choiceN(n)(choices)
+  }
+
+  //  7.12
+  def choiceMap[K, V](key: Par[K])(choices: Map[K, Par[V]]): Par[V] =
+    es => choices(run(es)(key).get)(es) //  todo 예외 처리 없음
+
+  //  7.13
+  def chooser[A, B](pa: Par[A])(choices: A => Par[B]): Par[B] =
+    es => choices(run(es)(pa).get)(es)
+
+  def choiceWithChooser[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
+    chooser(cond)(x => if (x) t; else f)
+
+  def choiceNWithChooser[A](n: Par[Int])(choices: List[Par[A]]): Par[A] =
+    chooser(n)(x => choices(x))
+
+  //  7.14
+  def join[A](a: Par[Par[A]]): Par[A] =
+    es => run(es)(a).get.apply(es)
+
+  def flatMap[A, B](a: Par[A])(f: A => Par[B]): Par[B] =
+    join(map(a)(f))
+
+  def joinWithFlatMap[A](a: Par[Par[A]]): Par[A] =
+    flatMap(a)(x => x)
 }
 
 
@@ -176,13 +205,32 @@ object FP_Chap7 {
 
     //  7.8
     val a = Par.lazyUnit(42 + 1)
-    val S = Executors.newFixedThreadPool(1)
+    val es2 = Executors.newFixedThreadPool(1)
 //    println(Par.equal(S)(a, Par.fork(a)))   //  deadlock
 
     //  7.9
     //  fork(fork(fork(...))
 
     println("def delay no more deadlock. unit(42+1) == delay(unit(42+1)) ? " +
-      Par.equal(S)(a, Par.delay(a)))
+      Par.equal(es2)(a, Par.delay(a)))
+
+    es2.shutdown()
+
+    //  7.11
+    val pList = List(Par.unit("zero"), Par.unit("one"), Par.unit("two"), Par.unit("three"))
+    println("2nd pick up from choiceN => " + Par.run(es)(Par.choiceN(Par.unit(2))(pList)).get())
+
+    //  7.12
+    val pMap = Map(1 -> Par.unit("one"), 2 -> Par.unit("two"), 3 -> Par.unit("three"))
+    println("key[3]'s value from choiceMap => " + Par.run(es)(Par.choiceMap(Par.unit(3))(pMap)).get())
+
+    //  7.13
+    println("choose word 'scenario' and return length => "
+      + Par.run(es)(Par.chooser(Par.unit("scenario"))(x => Par.unit(x.length))).get())
+
+    //  7.14
+    println("join unit(unit(10)) => " + Par.run(es)(Par.join(Par.unit(Par.unit(10)))).get())
+
+    es.shutdown()
   }
 }
